@@ -12,20 +12,25 @@ const io = require('socket.io-client');
 const socket = io.connect('http://localhost:3000');
 const path = require('path');
 const ini = require('ini');
-const PeppyPath = '/data/plugins/user_interface/peppy_screensaver/peppymeter/';
-const RunPeppyFile = 'run_peppymeter.sh';
-const id = 'peppy_screensaver: ';
-const runFlag = '/tmp/peppyrunning';
+//---
+const id = 'peppy_screensaver: ';      // for logging
+const PluginPath = '/data/plugins/user_interface/peppy_screensaver';
+const runFlag = '/tmp/peppyrunning';   // for detection, if peppymeter always running
+//---
+var PeppyPath = PluginPath + '/screensaver/peppymeter';
+var RunPeppyFile = PluginPath + '/run_peppymeter.sh';
+var PeppyConf = PeppyPath + '/config.txt';
+const meterFolderStr = 'meter.folder'; // entry in config.txt to detect template folder
 
 var minmax = new Array(5);
 var last_outputdevice, last_softmixer;
-var peppy_config, base_folder;
+var peppy_config, base_folder_P;
 
 const PluginConfiguration = '/data/configuration/plugins.json';
 const MPDtmpl = '/volumio/app/plugins/music_service/mpd/mpd.conf.tmpl';
 const MPD = '/tmp/mpd.conf.tmpl';
-const MPD_include_tmpl = '/data/plugins/user_interface/peppy_screensaver/mpd_include.conf';
-const MPD_include = '/etc/mpd_include.conf';
+const MPD_include_tmpl = PluginPath + '/mpd_custom.conf';
+const MPD_include = '/data/configuration/music_service/mpd/mpd_custom.conf';
 const AIRtmpl = '/volumio/app/plugins/music_service/airplay_emulation/shairport-sync.conf.tmpl';
 const AIR = '/tmp/shairport-sync.conf.tmpl';
 
@@ -33,8 +38,15 @@ var availMeters = '';
 var uiNeedsUpdate;
 const spotify_config = '/data/plugins/music_service/spop/config.yml.tmpl';
 const dsp_config = '/data/plugins/audio_interface/fusiondsp/camilladsp.conf.yml';
-  
 module.exports = peppyScreensaver;
+
+// for spectrum
+var SpectrumPath = PluginPath + '/screensaver/spectrum';
+var SpectrumConf = SpectrumPath + '/config.txt';
+//const SpectrumTmp = '/tmp/spectrumconfig.txt';
+const SpectrumFolderStr = 'spectrum.folder';// entry in config.txt to detect template folder
+var spectrum_config, base_folder_S;
+
 function peppyScreensaver(context) {
 	var self = this;
 
@@ -64,8 +76,9 @@ peppyScreensaver.prototype.onStart = function() {
     // load language strings here again, otherwise needs restart after installation
     self.commandRouter.loadI18nStrings();
     
-    // create fifo pipe
-    self.install_mkfifo();
+    // create fifo pipe for PeppyMeter/PeppySpectrum
+    self.install_mkfifo('/tmp/myfifo');
+    self.install_mkfifo('/tmp/myfifosa');
     // load snd dummy for peppymeter output 
     self.install_dummy();
 
@@ -73,13 +86,19 @@ peppyScreensaver.prototype.onStart = function() {
     if (fs.existsSync(runFlag)){fs.removeSync(runFlag);}
 
     // get peppyMeter config and new baseFolder
-    var config_file = PeppyPath + 'config.txt';
-    if (fs.existsSync(config_file)){
-        peppy_config = ini.parse(fs.readFileSync(config_file, 'utf-8'));
-        base_folder = peppy_config.current['base.folder'] + '/';
-        if (base_folder == '/') {base_folder = PeppyPath;}
+    if (fs.existsSync(PeppyConf)){
+        peppy_config = ini.parse(fs.readFileSync(PeppyConf, 'utf-8'));
+        base_folder_P = peppy_config.current['base.folder'] + '/';
+        if (base_folder_P == '/') {base_folder_P = PeppyPath + '/';}
     }
 
+    // get peppySpectrum config and new baseFolder
+    if (fs.existsSync(SpectrumConf)){
+        spectrum_config = ini.parse(fs.readFileSync(SpectrumConf, 'utf-8'));
+        base_folder_S = spectrum_config.current['base.folder'] + '/';
+        if (base_folder_S == '/') {base_folder_S = SpectrumPath + '/';}
+	}
+	
     // copy MPD_include file
     if (!fs.existsSync(MPD_include)) {self.copy_MPD_include(MPD_include_tmpl, MPD_include);}
         
@@ -92,13 +111,18 @@ peppyScreensaver.prototype.onStart = function() {
 		if (!MPDdata.includes('include_optional')){
 			fs.copySync(MPDtmpl, MPD); // copy orignal template file to /tmp
 			self.add_mpd_include (MPD) // change the copy
-				.then(self.mount_tmpl.bind(self, MPD, MPDtmpl)) // mount over original template
-				.then(self.recreate_mpdconf.bind(self));        // recreate mpd.conf on /etc
-		//		.then(self.restartMpd.bind(self));
+                .then(self.mount_tmpl.bind(self, MPD, MPDtmpl)) // mount over original template
+                .then(self.recreate_mpdconf.bind(self))         // recreate mpd.conf on /etc
+                .then(self.restartMpd.bind(self));              // if the plugin starts to late restart mpd needed
 		}
       } catch (err) {
         self.logger.error(id + MPDtmpl + 'not found');
       }
+
+      // use spectrum config in /tmp (RAM)
+      //fs.copySync(SpectrumConf, SpectrumTmp); // copy orignal template file to /tmp
+      //self.mount_tmpl(SpectrumTmp, SpectrumConf) // mount over original template
+
     
       last_outputdevice = self.getAlsaConfigParam('outputdevice');
       last_softmixer = self.getAlsaConfigParam('softvolume');
@@ -152,7 +176,7 @@ peppyScreensaver.prototype.onStart = function() {
         self.logger.error('+++ Jessie not more supported! +++');
     }
 
-    // event function on change state    
+    // event function on change state, to start PeppyMeter    
     socket.emit('getState', '');
     socket.on('pushState', function (state) {
 
@@ -163,7 +187,7 @@ peppyScreensaver.prototype.onStart = function() {
           if (ScreenTimeout > 0){ // for 0 do nothing
             Timeout = setInterval(function () {
               if (!fs.existsSync(runFlag)){
-                exec( PeppyPath + 'run_peppymeter.sh', { uid: 1000, gid: 1000 }, function (error, stdout, stderr) {        
+                exec( RunPeppyFile, { uid: 1000, gid: 1000 }, function (error, stdout, stderr) {        
                   if (error !== null) {
                     self.logger.error(id + 'Error start PeppyMeter: ' + error);
                   } else {
@@ -183,7 +207,7 @@ peppyScreensaver.prototype.onStart = function() {
 	defer.resolve();       
  
     return defer.promise;
-};
+}; // end onStart ----------------------------
 
 
 peppyScreensaver.prototype.onStop = function() {
@@ -193,7 +217,9 @@ peppyScreensaver.prototype.onStop = function() {
     self.commandRouter.stateMachine.stop().then(function () {
         if (fs.existsSync(MPD)){
             //unmount mpd_tmpl file, if mounted
-            self.unmount_tmpl(MPDtmpl);
+            self.unmount_tmpl(MPDtmpl)
+                .then(function() {fs.removeSync(MPD);}
+            );
                 //.then(function(){                  
                 //    self.recreate_mpdconf();
                 //        .then(self.restartMpd.bind(self));
@@ -202,6 +228,9 @@ peppyScreensaver.prototype.onStop = function() {
             self.logger.info (id + 'mpd template already unmounted');
         }
 
+        //umount spectrum config
+        //if (fs.existsSync(SpectrumTmp)){self.unmount_tmpl(SpectrumConf);}
+        
         //unmount air_tmpl file, if mounted
         if (fs.existsSync(AIR)){self.unmount_tmpl(AIRtmpl);}
         
@@ -218,7 +247,7 @@ peppyScreensaver.prototype.onStop = function() {
     });
     
     return libQ.resolve();
-};
+}; // end onStop ---------------------------------
 
 
 peppyScreensaver.prototype.onRestart = function() {
@@ -261,14 +290,12 @@ peppyScreensaver.prototype.getUIConfig = function() {
         __dirname + '/UIConfig.json')
         .then(function(uiconf)
         {
-
-        //var config_file = PeppyPath + 'config.txt';
         
         // section 0 -----------------------------        
-        if (fs.existsSync(PeppyPath + 'config.txt')){
+        if (fs.existsSync(PeppyConf)){
             // read values from ini
             //var config = ini.parse(fs.readFileSync(config_file, 'utf-8'));
-            var meters_file = base_folder + peppy_config.current['meter.folder'] + '/meters.txt';
+            var meters_file = base_folder_P + peppy_config.current[meterFolderStr] + '/meters.txt';
             var upperc = /\b([^-])/g;
             
             // alsa configuration only for buster
@@ -326,28 +353,29 @@ peppyScreensaver.prototype.getUIConfig = function() {
                                       
             // active folder
             // fill selection list with custom folders
-            var files = fs.readdirSync(base_folder);
+            var files = fs.readdirSync(base_folder_P);
             files.forEach(file => {
-                var stat = fs.statSync(base_folder + file);
-                if (stat.isDirectory() && file.includes ('custom')) {
+                var stat = fs.statSync(base_folder_P + file);
+                if (stat.isDirectory() && file.includes ('_')) {
                     var partFile = file.split('_');
-                    var str_empty = fs.existsSync(base_folder + file + '/meters.txt') ? '' : ' (empty)';
+                    var str_empty = fs.existsSync(base_folder_P + file + '/meters.txt') ? '' : ' (empty)';
                     self.configManager.pushUIConfigParam(uiconf, 'sections[0].content[5].options', {
                         value: file,
-                        label: 'Custom-' +  partFile[2] + ' ' + partFile[0] + str_empty
+                        label: (partFile[1]).replace(upperc, c => c.toUpperCase()) + '-' +  partFile[2] + ' ' + partFile[0] + str_empty
                     });
                 }
             });
             //if (self.config.get('activeFolder') == '') {
-                var meterFolder = peppy_config.current['meter.folder'];
+            var meterFolder = peppy_config.current[meterFolderStr];
+            if (meterFolder.includes ('_')) {
                 var partFile = meterFolder.split('_');
-                var str_empty = fs.existsSync(base_folder + meterFolder + '/meters.txt') ? '' : ' (empty)';
+                var str_empty = fs.existsSync(base_folder_P + meterFolder + '/meters.txt') ? '' : ' (empty)';
                 uiconf.sections[0].content[5].value.value = meterFolder;
-                uiconf.sections[0].content[5].value.label = 'Custom-' +  partFile[2] + ' ' + partFile[0] + str_empty;
-            //} else {
-            //    uiconf.sections[0].content[5].value.value = self.config.get('activeFolder');
-            //    uiconf.sections[0].content[5].value.label = self.config.get('activeFolder_title');
-            //}
+                uiconf.sections[0].content[5].value.label = (partFile[1]).replace(upperc, c => c.toUpperCase()) + '-' +  partFile[2] + ' ' + partFile[0] + str_empty;
+            } else {
+                uiconf.sections[0].content[5].value.value = self.config.get('activeFolder');
+                uiconf.sections[0].content[5].value.label = self.config.get('activeFolder_title');
+            }
 
             // smooth buffer
             uiconf.sections[0].content[6].value = parseInt(peppy_config.data.source['smooth.buffer.size'], 10);                                
@@ -358,14 +386,20 @@ peppyScreensaver.prototype.getUIConfig = function() {
             // needle cache
             var needleCache = (peppy_config.current['use.cache']).toLowerCase() == 'true' ? true : false;
             uiconf.sections[0].content[7].value = needleCache;
-            
+
+            // cache size
+            uiconf.sections[0].content[8].value = parseInt(peppy_config.current['cache.size'], 10);                                
+            minmax[2] = [uiconf.sections[0].content[8].attributes[2].min,
+                uiconf.sections[0].content[8].attributes[3].max,
+                uiconf.sections[0].content[8].attributes[0].placeholder];
+                
             // mouse support
             var mouseSupport = (peppy_config.sdl.env['mouse.enabled']).toLowerCase() == 'true' ? true : false;
-            uiconf.sections[0].content[8].value = mouseSupport;
+            uiconf.sections[0].content[9].value = mouseSupport;
 
             // display output
-            uiconf.sections[0].content[9].value.value = self.config.get('displayOutput');
-            uiconf.sections[0].content[9].value.label = 'Display=' + self.config.get('displayOutput');
+            uiconf.sections[0].content[10].value.value = self.config.get('displayOutput');
+            uiconf.sections[0].content[10].value.label = 'Display=' + self.config.get('displayOutput');
              
             // section 1 ------------
             availMeters = '';
@@ -383,7 +417,7 @@ peppyScreensaver.prototype.getUIConfig = function() {
 
                 // read all sections from active meters.txt and fill selection list
                 for (var section in metersconfig) {
-                    availMeters += section + ',';
+                    availMeters += section + ', ';
                     self.configManager.pushUIConfigParam(uiconf, 'sections[1].content[0].options', {
                         value: section,
                         label: section.replace(upperc, c => c.toUpperCase())
@@ -391,7 +425,7 @@ peppyScreensaver.prototype.getUIConfig = function() {
                 }
 
                 // list selection
-                availMeters = availMeters.substring(0, availMeters.length -1);
+                availMeters = availMeters.substring(0, availMeters.length -2);
                 if (self.config.get('randomSelection') == '') {
                     uiconf.sections[1].content[1].value = availMeters;
                 } else {
@@ -414,7 +448,7 @@ peppyScreensaver.prototype.getUIConfig = function() {
                 
                 // random intervall
                 uiconf.sections[1].content[3].value = parseInt(peppy_config.current['random.meter.interval'], 10);
-                minmax[2] = [uiconf.sections[1].content[3].attributes[2].min,
+                minmax[3] = [uiconf.sections[1].content[3].attributes[2].min,
                     uiconf.sections[1].content[3].attributes[3].max,
                     uiconf.sections[1].content[3].attributes[0].placeholder];
 
@@ -433,21 +467,22 @@ peppyScreensaver.prototype.getUIConfig = function() {
 
     
     return defer.promise;
-};
+}; // end getUIConfig -----------------------------------
 
 peppyScreensaver.prototype.getConfigurationFiles = function() {
 	return ['config.json'];
 };
 
-// called when 'save' button pressed global settings
+// called when 'save' button pressed on global settings
+//-------------------------------------------------------
 peppyScreensaver.prototype.savePeppyMeterConf = function (confData) {
   const self = this;
   let noChanges = true;
   uiNeedsUpdate = false;
   let uiNeedsReboot = false;
   
-  if (fs.existsSync(PeppyPath + 'config.txt')){
-    //var config = ini.parse(fs.readFileSync(PeppyPath + 'config.txt', 'utf-8'));
+  if (fs.existsSync(PeppyConf)){
+    //var config = ini.parse(fs.readFileSync(PeppyConf, 'utf-8'));
 
     // write DSP
     if (self.IfBuster()) {
@@ -509,8 +544,9 @@ peppyScreensaver.prototype.savePeppyMeterConf = function (confData) {
     }
    
     // write active folder
-    if (peppy_config.current['meter.folder'] !== confData.activeFolder.value) {
-        peppy_config.current['meter.folder'] = confData.activeFolder.value;
+    if (peppy_config.current[meterFolderStr] !== confData.activeFolder.value) {
+        peppy_config.current[meterFolderStr] = confData.activeFolder.value;
+        spectrum_config.current[SpectrumFolderStr] = confData.activeFolder.value;
         self.config.set('activeFolder', confData.activeFolder.value);
         self.config.set('activeFolder_title', confData.activeFolder.label);
         // reset active meter and save also
@@ -523,10 +559,10 @@ peppyScreensaver.prototype.savePeppyMeterConf = function (confData) {
 
     // write screen width/height
     var dimensions = {'width':'', 'height':''};
-    var files = fs.readdirSync(base_folder + confData.activeFolder.value);
+    var files = fs.readdirSync(base_folder_P + confData.activeFolder.value);
     files.forEach(file => {
         if (file.indexOf('-ext.') >= 0) {
-            dimensions = sizeOf(base_folder + confData.activeFolder.value + '/' + file);
+            dimensions = sizeOf(base_folder_P + confData.activeFolder.value + '/' + file);
             files.length = 0;
         }
     });    
@@ -540,6 +576,20 @@ peppyScreensaver.prototype.savePeppyMeterConf = function (confData) {
         peppy_config.current['use.cache'] = needleCache;
         noChanges = false;
     }
+    
+    // write needle cache
+    if (Number.isNaN(parseInt(confData.cachesize, 10)) || !isFinite(confData.cachesize)) {
+        uiNeedsUpdate = true;
+        setTimeout(function () {
+            self.commandRouter.pushToastMessage('error', self.commandRouter.getI18nString('PEPPY_SCREENSAVER.PLUGIN_NAME'), self.commandRouter.getI18nString('PEPPY_SCREENSAVER.CACHESIZE') + self.commandRouter.getI18nString('PEPPY_SCREENSAVER.NAN'));
+        }, 500);
+    } else {
+        confData.cachesize = self.minmax('CACHESIZE', confData.cachesize, minmax[2]);
+        if (peppy_config.current['cache.size'] != confData.cachesize) {
+            peppy_config.current['cache.size'] = confData.cachesize;
+            noChanges = false;
+        }
+    }    
     
     // smooth buffer
     if (Number.isNaN(parseInt(confData.smoothBuffer, 10)) || !isFinite(confData.smoothBuffer)) {
@@ -571,7 +621,16 @@ peppyScreensaver.prototype.savePeppyMeterConf = function (confData) {
     }
         
     if (!noChanges) {
-        fs.writeFileSync(PeppyPath + 'config.txt', ini.stringify(peppy_config, {whitespace: true}));
+        fs.writeFileSync(PeppyConf, ini.stringify(peppy_config, {whitespace: true}));
+        fs.writeFileSync(SpectrumConf, ini.stringify(spectrum_config, {whitespace: true}));
+        // unmount /tmp/config to make changes permanent
+        //self.unmount_tmpl(SpectrumConf)
+        //    .then(function() {
+        //        fs.writeFileSync(SpectrumConf, ini.stringify(spectrum_config, {whitespace: true}));
+        //        fs.copySync(SpectrumConf, SpectrumTmp); // copy orignal template file to /tmp
+        //        self.mount_tmpl(SpectrumTmp, SpectrumConf); // mount over original template
+        //    }
+        //);
     }
   } else {
       self.commandRouter.pushToastMessage('error', self.commandRouter.getI18nString('PEPPY_SCREENSAVER.PLUGIN_NAME'), self.commandRouter.getI18nString('PEPPY_SCREENSAVER.NO_PEPPYCONFIG'));
@@ -591,23 +650,26 @@ peppyScreensaver.prototype.savePeppyMeterConf = function (confData) {
     }
   }, 500);
   
-};
+}; // end savePeppyMeterConf ----------------------------
 
-// called when 'save' button pressed VU-Meter settings
+// called when 'save' button pressed on VU-Meter settings
+// ------------------------------------------------------
 peppyScreensaver.prototype.saveVUMeterConf = function (confData) {
   const self = this;
   let noChanges = true;
   uiNeedsUpdate = false;
   
-  if (fs.existsSync(PeppyPath + 'config.txt')){
-    //var config = ini.parse(fs.readFileSync(PeppyPath + 'config.txt', 'utf-8'));
+  if (fs.existsSync(PeppyConf)){
+    //var config = ini.parse(fs.readFileSync(PeppyConf, 'utf-8'));
     
     // write selected meter
     if ((confData.meter.value !== 'list' && peppy_config.current.meter !== confData.meter.value) || (confData.meter.value == 'list' && peppy_config.current.meter !== confData.randomSelection)) {
         if (confData.meter.value === 'list') {
             if (confData.randomSelection !== ''){
-                peppy_config.current.meter = (confData.randomSelection).toLowerCase();
-                self.config.set('randomSelection', (confData.randomSelection).toLowerCase());
+				if (self.checkListMode(confData.randomSelection)) {
+                    peppy_config.current.meter = (confData.randomSelection);
+                    self.config.set('randomSelection', (confData.randomSelection));
+                }
             } else {
                 peppy_config.current.meter = availMeters;
                 self.config.set('randomSelection', availMeters);
@@ -638,7 +700,7 @@ peppyScreensaver.prototype.saveVUMeterConf = function (confData) {
             self.commandRouter.pushToastMessage('error', self.commandRouter.getI18nString('PEPPY_SCREENSAVER.PLUGIN_NAME'), self.commandRouter.getI18nString('PEPPY_SCREENSAVER.RANDOMINTERVAL') + self.commandRouter.getI18nString('PEPPY_SCREENSAVER.NAN'));
         }, 500);
     } else {
-        confData.randomInterval = self.minmax('RANDOMINTERVAL', confData.randomInterval, minmax[2]);
+        confData.randomInterval = self.minmax('RANDOMINTERVAL', confData.randomInterval, minmax[3]);
         if (peppy_config.current['random.meter.interval'] != confData.randomInterval) {
             peppy_config.current['random.meter.interval'] = confData.randomInterval;
             noChanges = false;
@@ -646,7 +708,7 @@ peppyScreensaver.prototype.saveVUMeterConf = function (confData) {
     }
     
     if (!noChanges) {
-        fs.writeFileSync(PeppyPath + 'config.txt', ini.stringify(peppy_config, {whitespace: true}));
+        fs.writeFileSync(PeppyConf, ini.stringify(peppy_config, {whitespace: true}));
     }
   } else {
       self.commandRouter.pushToastMessage('error', self.commandRouter.getI18nString('PEPPY_SCREENSAVER.PLUGIN_NAME'), self.commandRouter.getI18nString('PEPPY_SCREENSAVER.NO_PEPPYCONFIG'));
@@ -660,10 +722,10 @@ peppyScreensaver.prototype.saveVUMeterConf = function (confData) {
         self.commandRouter.pushToastMessage('success', self.commandRouter.getI18nString('PEPPY_SCREENSAVER.PLUGIN_NAME'), self.commandRouter.getI18nString('COMMON.SETTINGS_SAVED_SUCCESSFULLY'));
     }
   }, 500);
-};
+}; // end saveVUMeterConf -------------------------------------
 
+// global functions
 //-------------------------------------------------------------
-
 peppyScreensaver.prototype.minmax = function (item, value, attrib) {
   var self = this;
   if (Number.isNaN(parseInt(value, 10)) || !isFinite(value)) {
@@ -671,14 +733,18 @@ peppyScreensaver.prototype.minmax = function (item, value, attrib) {
       return attrib[2];
   }
     if (value < attrib[0]) {
-      self.commandRouter.pushToastMessage("info", self.commandRouter.getI18nString('PEPPY_SCREENSAVER.PLUGIN_NAME'), self.commandRouter.getI18nString('PEPPY_SCREENSAVER.' + item.toUpperCase()) + ': ' + self.commandRouter.getI18nString('PEPPY_SCREENSAVER.INFO_MIN'));
-      uiNeedsUpdate = true;
-      return attrib[0];
+        setTimeout(function () {
+            self.commandRouter.pushToastMessage("info", self.commandRouter.getI18nString('PEPPY_SCREENSAVER.PLUGIN_NAME'), self.commandRouter.getI18nString('PEPPY_SCREENSAVER.' + item.toUpperCase()) + ': ' + self.commandRouter.getI18nString('PEPPY_SCREENSAVER.INFO_MIN'));
+        }, 700);        
+        uiNeedsUpdate = true;
+        return attrib[0];
     }
     if (value > attrib[1]) {
-      self.commandRouter.pushToastMessage("info", self.commandRouter.getI18nString('PEPPY_SCREENSAVER.PLUGIN_NAME'), self.commandRouter.getI18nString('PEPPY_SCREENSAVER.' + item.toUpperCase()) + ': ' + self.commandRouter.getI18nString('PEPPY_SCREENSAVER.INFO_MAX'));
-      uiNeedsUpdate = true;
-      return attrib[1];
+        setTimeout(function () {
+            self.commandRouter.pushToastMessage("info", self.commandRouter.getI18nString('PEPPY_SCREENSAVER.PLUGIN_NAME'), self.commandRouter.getI18nString('PEPPY_SCREENSAVER.' + item.toUpperCase()) + ': ' + self.commandRouter.getI18nString('PEPPY_SCREENSAVER.INFO_MAX'));
+        }, 700); 
+        uiNeedsUpdate = true;
+        return attrib[1];
     }
     return parseInt(value, 10);
 };
@@ -724,7 +790,7 @@ peppyScreensaver.prototype.checkDSPactive = function (DSD){
 peppyScreensaver.prototype.checkMetersFile = function (){
     const self = this;
     const defer = libQ.defer();
-    var meters_file = base_folder + peppy_config.current['meter.folder'] + '/meters.txt';
+    var meters_file = base_folder_P + peppy_config.current[meterFolderStr] + '/meters.txt';
   
     if (!fs.existsSync(meters_file)){
         setTimeout(function () {
@@ -735,12 +801,65 @@ peppyScreensaver.prototype.checkMetersFile = function (){
     return defer.promise;
 };
 
+peppyScreensaver.prototype.checkListMode = function (listStr){
+    const self = this;
+	
+	var meters_file = base_folder_P + peppy_config.current[meterFolderStr] + '/meters.txt';
+	var meterSectArray = [];
+    var listError = [];
+	var listArray = (listStr).split(',');
+	var not_found = false;
+	
+	if (fs.existsSync(meters_file)){
+	    var metersconfig = ini.parse(fs.readFileSync(meters_file, 'utf-8'));
+		
+		// get sections from file	
+		for (var section in metersconfig) {
+			meterSectArray.push(section);
+		}
+		// check if list entry in section
+		for (var i in listArray) {
+			if (!meterSectArray.includes(listArray[i].trim())) {
+                listError.push(listArray[i]);
+                not_found = true;
+            }
+		}
+	
+	} else {
+		not_found = true;
+	}
+  
+    if (not_found){
+        setTimeout(function () {
+        // create a hint as modal
+        var responseData = {
+        title: self.commandRouter.getI18nString('PEPPY_SCREENSAVER.NOTINLIST_TITLE'),
+        message: self.commandRouter.getI18nString('PEPPY_SCREENSAVER.NOTINLIST') + listError,
+        size: 'lg',
+        buttons: [
+            {
+            name: self.commandRouter.getI18nString('COMMON.GOT_IT'),
+            class: 'btn btn-info ng-scope',
+            emit: '',
+            payload: ''
+            }
+        ]
+        };
+        self.commandRouter.broadcastMessage('openModal', responseData);
+        }, 1000);
+		return false;
+    }
+
+    return true;
+};
+
+
 peppyScreensaver.prototype.install_dummy = function () {
   const self = this;
   let defer = libQ.defer();
   
   try {
-    execSync("/usr/bin/sudo /sbin/modprobe snd-dummy index=7 pcm_substreams=1", { uid: 1000, gid: 1000 });
+    execSync("/usr/bin/sudo /sbin/modprobe snd-dummy index=7 pcm_substreams=1 fake_buffer=0", { uid: 1000, gid: 1000 });
 //    execSync("/usr/bin/sudo /sbin/modprobe snd-aloop", { uid: 1000, gid: 1000 });
     self.commandRouter.pushConsoleMessage('snd-dummy loaded');
     defer.resolve();
@@ -749,16 +868,16 @@ peppyScreensaver.prototype.install_dummy = function () {
   }
 };
 
-peppyScreensaver.prototype.install_mkfifo = function () {
+peppyScreensaver.prototype.install_mkfifo = function (fifoName) {
   const self = this;
   let defer = libQ.defer();
   
   try {
-    exec('/usr/bin/mkfifo -m 646 /tmp/myfifo', { uid: 1000, gid: 1000 });
-    self.commandRouter.pushConsoleMessage('/tmp/myfifo created');
+    exec('/usr/bin/mkfifo -m 646 ' + fifoName, { uid: 1000, gid: 1000 });
+    self.commandRouter.pushConsoleMessage(fifoName + ' created');
     defer.resolve();
   } catch (err) {
-    self.logger.info('failed to create /tmp/myfifo' + err);
+    self.logger.info('failed to create ' + fifoName + ' ' + err);
   }    
 };
 
@@ -783,19 +902,18 @@ peppyScreensaver.prototype.switch_alsaConfig = function (alsaConf) {
 peppyScreensaver.prototype.switch_DisplayPort = function (DispOut) {
     const self = this;
     var defer = libQ.defer();
-    var runPeppy_file = PeppyPath + RunPeppyFile;
     
-    if (fs.existsSync(runPeppy_file)){
-        var runPeppydata = fs.readFileSync(runPeppy_file, 'utf8');
+    if (fs.existsSync(RunPeppyFile)){
+        var runPeppydata = fs.readFileSync(RunPeppyFile, 'utf8');
         if (DispOut == "0") {
             runPeppydata = runPeppydata.replace('DISPLAY=:1', 'DISPLAY=:' + DispOut);
         } else {
             runPeppydata = runPeppydata.replace('DISPLAY=:0', 'DISPLAY=:' + DispOut);
         }
 
-        fs.writeFile(runPeppy_file, runPeppydata, 'utf8', function (err) {
+        fs.writeFile(RunPeppyFile, runPeppydata, 'utf8', function (err) {
             if (err) {
-                self.logger.info('Cannot write ' + runPeppy_file + err);
+                self.logger.info('Cannot write ' + RunPeppyFile + err);
             } else {               
                 defer.resolve();
             }
@@ -946,7 +1064,7 @@ peppyScreensaver.prototype.add_mpd_include = function (data) {
     var MPDdata = fs.readFileSync(data, 'utf8'); 
     if (!MPDdata.includes('include_optional')){
             
-        exec("sed -i '/# Files and directories/a include_optional    \x22mpd_include.conf\x22' " + data, { uid: 1000, gid: 1000 }, function (error, stdout, stderr    ) {
+        exec("sed -i '/# Files and directories/a include_optional    \x22\/data\/configuration\/music_service\/mpd\/mpd_custom.conf\x22' " + data, { uid: 1000, gid: 1000 }, function (error, stdout, stderr    ) {
             if (error) {
                 self.logger.warn(id + 'An error occurred when add MPD include entry', error);
             } else {

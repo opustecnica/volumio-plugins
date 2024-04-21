@@ -22,6 +22,7 @@
                                       "activeFolder",
                                       "smoothBuffer",
                                       "needleCache",
+                                      "cachesize",
                                       "mouseEnabled",
                                       "displayOutput"
                                       ]
@@ -127,6 +128,21 @@
                              "doc": "TRANSLATE.PEPPY_SCREENSAVER.NEEDLE_CACHE_DOC",
                              "label": "TRANSLATE.PEPPY_SCREENSAVER.NEEDLE_CACHE",
                              "value": true
+                            },
+                            {
+                             "id": "cachesize",
+                             "element": "input",
+                             "type": "number",
+                             "visibleIf": {"field": "needleCache", "value": true},
+                             "doc": "TRANSLATE.PEPPY_SCREENSAVER.CACHESIZE_DOC",
+                             "label": "TRANSLATE.PEPPY_SCREENSAVER.CACHESIZE",
+                             "attributes": [
+                                             {"placeholder": 20},
+                                             {"maxlength": 2},
+                                             {"min": 2},
+                                             {"max": 99}
+                                           ],
+                             "value": 20
                             },
                             {
                              "id": "mouseEnabled",

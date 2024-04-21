@@ -29,6 +29,8 @@
     "RANDOMINTERVAL_DOC":"Time interval until the next meter is displayed",
     "NEEDLE_CACHE":"Needle Cache",
     "NEEDLE_CACHE_DOC":"A Raspberry with 1GB RAM and a display resolution of 1920x1080 or 1280x800 is hard at the memory limit. Therefore the cache has to be switched off, in order to save memory. Otherwise, no random or list mode is possible",
+    "CACHESIZE":"Cache Size",
+    "CACHESIZE_DOC":"Number of cached meters per selected resolution. Please be careful about increasing the value. An increased value requires more memory because more resources are cached. If there is not enough memory, the system may freeze.",
     "ACTIVE_FOLDER":"Active meter folder",
     "ACTIVE_FOLDER_DOC":"Selection of the actively used folder for VU-Meter depend on screen resolution",
     "SMOOTH_BUFFER":"Smooth Needle",
@@ -40,7 +42,7 @@
     "APPLY":"Apply",
     "INFO_MIN":"The value has been adjusted to the lowest possible because the value entered is too small.",
     "INFO_MAX":"The value has been adjusted to the highest possible because the value entered is too big.",
-    "NAN":": La valeur précédente a été conservée car la valeur saisie n'est pas un nombre.",
+    "NAN":": The previous value was retained because the value entered is not a number.",
     "NO_PEPPYCONFIG":"No PeppyMeter 'config.txt' found. Cannot read and save settings!",
     "NO_CHANGES":"No changes to save.",
     "UNINSTALL_TITLE":"Reboot required",
@@ -52,6 +54,8 @@
     "NODSPWARNING_TITLE":"FusionDsp is not active!",
     "NODSPWARNING":"For a correct functionality please disable the PeppyMeter integration or enable FusionDsp.",
     "NOMETERSWARNING_TITLE":"You have selected an empty meters folder!",
-    "NOMETERSWARNING":"Please copy a valid meter template to resolution folder in: /data/INTERNAL/peppy_screensaver/templates"
+    "NOMETERSWARNING":"Please copy a valid meter template to resolution folder in: /data/INTERNAL/peppy_screensaver/templates",
+    "NOTINLIST_TITLE":"List mode warning",
+    "NOTINLIST":"List cannot be saved.<br />Follow entries are not as meter section available:<br /><br />"
   }
 }

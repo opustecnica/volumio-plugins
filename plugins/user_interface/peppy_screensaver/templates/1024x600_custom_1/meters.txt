@@ -5,7 +5,7 @@ ui.refresh.period = 0.033
 bgr.filename = gold-bgr.png
 fgr.filename = gold-fgr.png
 indicator.filename = gold-needle.png
-steps.per.degree = 8
+steps.per.degree = 4
 start.angle = 44
 stop.angle = -44
 distance = 135
@@ -18,6 +18,7 @@ meter.y = 100
 screen.bgr = gold-ext.jpg
 # --- volumio optional entries -------
 config.extend = True
+meter.visible = True
 albumart.pos = 31,385
 albumart.dimension = 170,170
 playinfo.text.center = False
@@ -41,6 +42,9 @@ font.size.light = 17
 font.size.regular = 15
 font.size.bold = 18
 font.color = 220,220,220
+spectrum.visible = True
+spectrum.name = s.1
+spectrum.size = 1004,53
 
 [black-white]
 meter.type = circular
@@ -49,7 +53,7 @@ ui.refresh.period = 0.033
 bgr.filename = black-white-bgr.png
 fgr.filename = black-white-fgr.png
 indicator.filename = black-white-needle.png
-steps.per.degree = 8
+steps.per.degree = 4
 start.angle = 45
 stop.angle = -45
 distance = 146
@@ -84,6 +88,52 @@ font.size.regular = 16
 font.size.bold = 19
 font.color = 255,255,255
 
+[black-white-spectrum]
+meter.type = circular
+channels = 2
+ui.refresh.period = 0.033
+bgr.filename = _dummy.png
+fgr.filename =
+indicator.filename = _dummy.png
+steps.per.degree = 1
+start.angle = 0
+stop.angle = 0
+distance = 0
+left.origin.x = 0
+left.origin.y = 0
+right.origin.x = 0
+right.origin.y = 0
+meter.x = 1
+meter.y = 1
+screen.bgr = black-white-spectrum-ext.jpg
+# --- volumio optional entries -------
+config.extend = True
+meter.visible = False
+albumart.pos = 30,29
+albumart.dimension = 162,162
+playinfo.title.pos = 224,126,bold
+playinfo.title.color = 255,237,76
+playinfo.artist.pos = 224,151,light
+playinfo.artist.color = 255,255,255
+#playinfo.album.pos = 224,940,light
+#playinfo.album.color = 255,255,255
+playinfo.center = False
+playinfo.maxwidth = 434
+playinfo.type.pos = 678,131
+playinfo.type.color = 255,255,255
+playinfo.type.dimension = 38,38
+playinfo.samplerate.pos = 723,141,regular
+time.remaining.pos = 882,146
+time.remaining.color = 180,180,180
+font.size.digi = 32
+font.size.light = 18
+font.size.regular = 16
+font.size.bold = 19
+font.color = 255,255,255
+spectrum.visible = True
+spectrum.name = s.2
+spectrum.size = 1004,248
+
 [black-blue]
 meter.type = circular
 channels = 2
@@ -91,7 +141,7 @@ ui.refresh.period = 0.033
 bgr.filename = black-blue-bgr.png
 fgr.filename = black-blue-fgr.png
 indicator.filename = black-white-needle.png
-steps.per.degree = 8
+steps.per.degree = 4
 start.angle = 45
 stop.angle = -45
 distance = 146
@@ -122,6 +172,49 @@ font.size.light = 18
 font.size.regular = 16
 font.size.bold = 19
 font.color = 255,255,255
+
+[black-blue-spectrum]
+meter.type = circular
+channels = 2
+ui.refresh.period = 0.033
+bgr.filename = _dummy.png
+fgr.filename =
+indicator.filename = _dummy.png
+steps.per.degree = 1
+start.angle = 0
+stop.angle = 0
+distance = 0
+left.origin.x = 0
+left.origin.y = 0
+right.origin.x = 0
+right.origin.y = 0
+meter.x = 1
+meter.y = 1
+screen.bgr = black-blue-spectrum-ext.jpg
+# --- volumio optional entries -------
+config.extend = True
+meter.visible = False
+albumart.pos = 30,29
+albumart.dimension = 163,163
+playinfo.title.pos = 224,126,bold
+playinfo.artist.pos = 224,151,light
+#playinfo.album.pos = 224,940,light
+playinfo.center = False
+playinfo.maxwidth = 434
+playinfo.type.pos = 678,131
+playinfo.type.color = 255,255,255
+playinfo.type.dimension = 38,38
+playinfo.samplerate.pos = 723,141,regular
+time.remaining.pos = 882,146
+time.remaining.color = 51,170,196
+font.size.digi = 32
+font.size.light = 18
+font.size.regular = 16
+font.size.bold = 19
+font.color = 255,255,255
+spectrum.visible = True
+spectrum.name = s.3
+spectrum.size = 1004,248
 
 [emerald]
 meter.type = circular
@@ -162,6 +255,49 @@ font.size.regular = 19
 font.size.bold = 18
 font.color = 97,238,176
 
+[emerald-spectrum]
+meter.type = circular
+channels = 2
+ui.refresh.period = 0.033
+bgr.filename = _dummy.png
+fgr.filename =
+indicator.filename = _dummy.png
+steps.per.degree = 1
+start.angle = 0
+stop.angle = 0
+distance = 0
+left.origin.x = 0
+left.origin.y = 0
+right.origin.x = 0
+right.origin.y = 0
+meter.x = 1
+meter.y = 1
+screen.bgr = emerald-spectrum-ext.jpg
+# --- volumio optional entries -------
+config.extend = True
+meter.visible = False
+albumart.pos = 18,418
+albumart.dimension = 159,159
+playinfo.title.pos = 210,423,regular
+playinfo.artist.pos = 210,447,light
+#playinfo.album.pos = 210,940,light
+playinfo.center = False
+playinfo.maxwidth = 380
+playinfo.type.pos = 131,72
+playinfo.type.color = 255,255,255
+playinfo.type.dimension = 31,31
+playinfo.samplerate.pos = 173,77,bold
+time.remaining.pos = 859,392
+time.remaining.color = 67,194,139
+font.size.digi = 20
+font.size.light = 18
+font.size.regular = 19
+font.size.bold = 18
+font.color = 97,238,176
+spectrum.visible = True
+spectrum.name = s.4
+spectrum.size = 759,207
+
 [orange]
 meter.type = circular
 channels = 2
@@ -182,6 +318,7 @@ meter.y = 215
 screen.bgr = orange-ext.jpg
 # --- volumio optional entries -------
 config.extend = True
+meter.visible = True
 albumart.pos = 28,35
 albumart.dimension = 188,188
 playinfo.title.pos = 262,172,bold
@@ -200,6 +337,9 @@ font.size.light = 18
 font.size.regular = 18
 font.size.bold = 20
 font.color = 229,106,52
+spectrum.visible = True
+spectrum.name = s.5
+spectrum.size = 538,86
 
 [galaxy]
 meter.type = circular
@@ -240,6 +380,50 @@ font.size.light = 20
 font.size.regular = 20
 font.size.bold = 22
 font.color = 240,240,240
+
+[galaxy-spectrum]
+meter.type = circular
+channels = 2
+ui.refresh.period = 0.033
+bgr.filename = galaxy-bgr.png
+fgr.filename = galaxy-fgr.png
+indicator.filename = galaxy-needle.png
+steps.per.degree = 2
+start.angle = 48
+stop.angle = -48
+distance = 57
+left.origin.x = 111
+left.origin.y = 140
+right.origin.x = 307
+right.origin.y = 140
+meter.x = 583
+meter.y = 422
+screen.bgr = galaxy-spectrum-ext.jpg
+# --- volumio optional entries -------
+config.extend = True
+meter.visible = False
+albumart.pos = 25,37
+albumart.dimension = 526,526
+#albumart.border = 1
+playinfo.title.pos = 583,65,bold
+playinfo.artist.pos = 583,102,regular
+playinfo.album.pos = 583,135,light
+playinfo.maxwidth = 415
+playinfo.center = True
+playinfo.type.pos = 770,172
+playinfo.type.color = 240,240,240
+playinfo.type.dimension = 40,40
+playinfo.samplerate.pos = 583,219,regular 
+time.remaining.pos = 810,346
+time.remaining.color = 67,194,139
+font.size.digi = 50
+font.size.light = 20
+font.size.regular = 20
+font.size.bold = 22
+font.color = 240,240,240
+spectrum.visible = True
+spectrum.name = s.6
+spectrum.size = 414,146
 
 [red]
 meter.type = circular
@@ -282,6 +466,51 @@ font.size.regular = 20
 font.size.bold = 22
 font.color = 255,255,255
 
+[red-spectrum]
+meter.type = circular
+channels = 2
+ui.refresh.period = 0.033
+bgr.filename = red-bgr.png
+fgr.filename = red-fgr.png
+indicator.filename = red-needle.png
+steps.per.degree = 2
+start.angle = 43
+stop.angle = -43
+distance = 75
+left.origin.x = 113
+left.origin.y = 155
+right.origin.x = 304
+right.origin.y = 155
+meter.x = 583
+meter.y = 421
+screen.bgr = red-spectrum-ext.jpg
+# --- volumio optional entries -------
+config.extend = True
+meter.visible = False
+albumart.pos = 25,37
+albumart.dimension = 526,526
+#albumart.border = 1
+#albumart.mask = red-msk.jpg
+playinfo.title.pos = 583,65,bold
+playinfo.artist.pos = 583,102,regular
+playinfo.album.pos = 583,135,light
+playinfo.maxwidth = 415
+playinfo.center = True
+playinfo.type.pos = 770,172
+playinfo.type.color = 255,255,255
+playinfo.type.dimension = 40,40
+playinfo.samplerate.pos = 583,219,regular 
+time.remaining.pos = 810,346
+time.remaining.color = 247,151,14
+font.size.digi = 50
+font.size.light = 20
+font.size.regular = 20
+font.size.bold = 22
+font.color = 255,255,255
+spectrum.visible = True
+spectrum.name = s.9
+spectrum.size = 414,146
+
 [dash]
 meter.type = linear
 channels = 2
@@ -301,6 +530,7 @@ meter.y = 462
 screen.bgr = dash-ext.jpg
 # --- volumio optional entries -------
 config.extend = True
+meter.visible = True
 albumart.pos = 26,38
 albumart.dimension = 524,524
 albumart.border = 1
@@ -320,8 +550,11 @@ font.size.light = 20
 font.size.regular = 20
 font.size.bold = 22
 font.color = 230,230,230
+spectrum.visible = True
+spectrum.name = s.7
+spectrum.size = 215,70
 
-[dash2]
+[dash-spectrum]
 meter.type = linear
 channels = 2
 ui.refresh.period = 0.033
@@ -337,9 +570,10 @@ step.width.regular = 30
 step.width.overload = 30
 meter.x = 576
 meter.y = 462
-screen.bgr = dash2-ext.jpg
+screen.bgr = dash-spectrum-ext.jpg
 # --- volumio optional entries -------
 config.extend = True
+meter.visible = False
 albumart.pos = 0,12
 albumart.dimension = 576,576
 albumart.border = 0
@@ -360,6 +594,9 @@ font.size.light = 20
 font.size.regular = 20
 font.size.bold = 22
 font.color = 230,230,230
+spectrum.visible = True
+spectrum.name = s.8
+spectrum.size = 427,106
 
 [crystal]
 meter.type = linear

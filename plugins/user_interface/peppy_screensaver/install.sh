@@ -22,8 +22,9 @@ except ImportError:
 # set current directory
 dest_path=/data/plugins/user_interface/peppy_screensaver
 ppa_path=/home/volumio/peppyalsa
-peppy_path=${dest_path}/peppymeter
-data_path=/data/INTERNAL/peppy_screensaver/templates
+peppymeter_path=${dest_path}/screensaver/peppymeter
+peppyspectrum_path=${dest_path}/screensaver/spectrum
+data_path=/data/INTERNAL/peppy_screensaver
 
 ID=$(awk '/VERSION_ID=/' /etc/*-release | sed 's/VERSION_ID=//' | sed 's/\"//g')
 VER=$(awk '/VOLUMIO_VERSION=/' /etc/*-release | sed 's/VOLUMIO_VERSION=//' | sed 's/\"//g')
@@ -82,35 +83,49 @@ fi
     
 ########################################
 # install PeppyMeter
-if [ ! -d "${peppy_path}" ]; then
+if [ ! -d "${peppymeter_path}" ]; then
     echo "___Install PeppyMeter..."
-    git clone https://github.com/project-owner/PeppyMeter.git $peppy_path
-    chmod 777 -R $peppy_path
-    sudo chown volumio $peppy_path
-    sudo chgrp volumio $peppy_path
+    git clone https://github.com/project-owner/PeppyMeter.git $peppymeter_path
+#    chmod -R 777 $peppymeter_path
+#    chown -R volumio:volumio $peppymeter_path
 else
     echo "___PeppyMeter already installed"
 fi
 
 # copy volumio integration
-mv -f ${dest_path}/volumio_peppymeter/* ${peppy_path}/ 
+cp -rf ${dest_path}/volumio_peppymeter/* ${dest_path}/screensaver/ 
 rm -rd ${dest_path}/volumio_peppymeter
-sudo chmod +x ${peppy_path}/run_peppymeter.sh
+chmod +x ${dest_path}/run_peppymeter.sh
 
 # templates
 mkdir -p ${data_path} 
-mv -f ${dest_path}/templates/* ${data_path}/
+cp -rf ${dest_path}/templates ${data_path}/
 rm -rd ${dest_path}/templates 
-mv -f ${peppy_path}/320x240 ${data_path}/
-mv -f ${peppy_path}/480x320 ${data_path}/
-mv -f ${peppy_path}/800x480 ${data_path}/
-mv -f ${peppy_path}/1280x400 ${data_path}/ 
-rm -rd ${peppy_path}/320x240
-rm -rd ${peppy_path}/480x320
-rm -rd ${peppy_path}/800x480
-rm -rd ${peppy_path}/1280x400 
-sudo chmod -R 777 ${data_path}
+cp -rf ${peppymeter_path}/*0x* ${data_path}/templates/
+rm -rd ${peppymeter_path}/*0x*
 
+########################################
+# install PeppySpectrum
+if [ ! -d "${peppyspectrum_path}" ]; then
+    echo "___Install PeppySpectrum..."
+    git clone https://github.com/project-owner/PeppySpectrum.git $peppyspectrum_path
+#    chmod -R 777 $peppyspectrum_path
+#    chown -R volumio:volumio $peppyspectrum_path
+else
+    echo "___PeppySpectrum already installed"
+fi
+
+# templates 
+cp -rf ${dest_path}/templates_spectrum ${data_path}/
+rm -rd ${dest_path}/templates_spectrum 
+cp -rf ${peppyspectrum_path}/*0x* ${data_path}/templates_spectrum/
+rm -rd ${peppyspectrum_path}/*0x*
+
+chmod -R 744 ${data_path}
+chown -R volumio:volumio ${data_path}
+chmod -R 755 ${dest_path}/screensaver
+chown -R volumio:volumio ${dest_path}/screensaver
+    
 ########################################
 # install python and pygame
 
@@ -153,10 +168,12 @@ else
 fi
 
 if [ $(checkModul "cairosvg" | grep -c '1') -eq 0 ]; then
-    echo "___Install python cairoSVG..."
+
     if [ $ARCH = "arm" ]; then
-        sudo tar -xzf ${dest_path}/dependencies/cairosvg.tar.gz  -C /usr/local/lib/python3.7/dist-packages
+        echo "___Install python pillow..."
+        sudo tar -xzf ${dest_path}/dependencies/PIL.tar.gz  -C /usr/local/lib/python3.7/dist-packages
     else
+        echo "___Install python cairoSVG..."
         if [ $APTUPD = "false" ]; then sudo apt-get update && APTUPD=true; fi
         if [ $PIPUPD = "false" ]; then sudo apt-get -y install python3-pip && PIPUPD=true; fi
         sudo apt install libjpeg-dev zlib1g-dev
@@ -171,7 +188,7 @@ sudo rm -rd ${dest_path}/dependencies
 ########################################
 # modify PeppyMeter config for Volumio
 echo "___Modify PeppyMeter config for Volumio..."
-CFG=${peppy_path}/config.txt
+CFG=${peppymeter_path}/config.txt
 
 
 # section current
@@ -201,10 +218,39 @@ fi
 # section sdl.env
 sed -i 's/framebuffer.device.*/framebuffer.device = \/dev\/fb0/g' $CFG
 sed -i 's/mouse.device.*/mouse.device = \/dev\/input\/event0/g' $CFG
+sed -i 's/double.buffer.*/double.buffer = False/g' $CFG
 sed -i 's/no.frame.*/no.frame = True/g' $CFG
 # section data.source
 sed -i 's/pipe.name.*/pipe.name = \/tmp\/myfifo/g' $CFG
 sed -i 's/smooth.buffer.size.*/smooth.buffer.size = 8/g' $CFG
+
+########################################
+# modify PeppySpectrum config for Volumio
+echo "___Modify PeppySpectrum config for Volumio..."
+CFG=${peppyspectrum_path}/config.txt
+
+# section current
+sed -i 's/base.folder.*/base.folder = \/data\/INTERNAL\/peppy_screensaver\/templates_spectrum/g' $CFG
+sed -i 's/exit.on.touch.*/exit.on.touch = True/g' $CFG
+sed -i 's/pipe.name.*/pipe.name = \/tmp\/myfifosa/g' $CFG
+sed -i 's/size.*/size = 20/g' $CFG
+sed -i 's/update.ui.interval.*/update.ui.interval = 0.04/g' $CFG
+
+# section sdl.env
+sed -i 's/framebuffer.device.*/framebuffer.device = \/dev\/fb0/g' $CFG
+sed -i 's/mouse.device.*/mouse.device = \/dev\/input\/event0/g' $CFG
+sed -i 's/double.buffer.*/double.buffer = False/g' $CFG
+sed -i 's/no.frame.*/no.frame = True/g' $CFG
+
+# screensaverspectrum.py
+#CFG=${peppyspectrum_path}/screensaverspectrum.py
+#sed -i '/if util != None:/a\
+#            self.bg = (None, None, None, None)\
+#            """' $CFG
+#sed -i '/def get_update_period(self):/i\
+#            """\
+#' $CFG
+
 echo "___Finished"        
     
    

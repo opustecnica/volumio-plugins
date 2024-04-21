@@ -5,11 +5,9 @@
 
 import os
 from configparser import ConfigParser
+from configfileparser import BASE_PATH, SCREEN_INFO, METER_FOLDER, FILE_CONFIG, FILE_METER_CONFIG, CURRENT, METER
 
-CURRENT = "current"
-METER = "meter"
-BASE_FOLDER = "base.folder"
-METER_FOLDER = "meter.folder"
+METER_BKP = "meter"
 FILE_CONFIG = "config.txt"
 FILE_METER_CONFIG = "meters.txt"
 
@@ -20,6 +18,7 @@ FONT_REGULAR = "font.regular"
 FONT_BOLD = "font.bold"
 
 EXTENDED_CONF = "config.extend"
+METER_VISIBLE = "meter.visible"
 ALBUMART_POS = "albumart.pos"
 ALBUMART_DIM = "albumart.dimension"
 ALBUMART_MSK = "albumart.mask"
@@ -56,16 +55,23 @@ FONTSIZE_BOLD = "font.size.bold"
 FONTSIZE_DIGI = "font.size.digi"
 FONTCOLOR = "font.color"
 
+SPECTRUM_VISIBLE = "spectrum.visible"
+SPECTRUM = "spectrum.name"
+SPECTRUM_SIZE = "spectrum.size"
+
 class Volumio_ConfigFileParser(object):
     """ Configuration file parser """
     
-    def __init__(self, base_path):
+    def __init__(self, util):
         """ Initializer """  
-              
+
+        self.util = util
+        self.meter_config = self.util.meter_config
+        self.meter_config_path = os.path.join(self.meter_config[BASE_PATH], self.meter_config[SCREEN_INFO][METER_FOLDER], FILE_METER_CONFIG)              
         self.meter_config_volumio = {}
         c = ConfigParser()
 
-        peppy_meter_path = os.path.join(base_path, FILE_CONFIG)
+        peppy_meter_path = os.path.join(os.getcwd(), FILE_CONFIG)        
         c.read(peppy_meter_path)
 
         try:    
@@ -88,29 +94,14 @@ class Volumio_ConfigFileParser(object):
             self.meter_config_volumio[FONT_BOLD] = c.get(CURRENT, FONT_BOLD)
         except:
             self.meter_config_volumio[FONT_BOLD] = None
-        try:    
-            self.meter_config_volumio[METER] = c.get(CURRENT, METER)
+        try:
+            self.meter_config_volumio[METER_BKP] = self.meter_config[METER]
         except:
-            self.meter_config_volumio[METER] = None
-
-
-        if c.get(CURRENT, BASE_FOLDER):     
-            base_path = c.get(CURRENT, BASE_FOLDER)
-       
-        meter_folder = c.get(CURRENT, METER_FOLDER)
-        folder = os.path.join(base_path, meter_folder)
-        if not os.path.isdir(folder):
-            print("Not supported screen size: " + meter_folder)
-            os._exit(0)
- 
-        meter_config_path = os.path.join(base_path, meter_folder, FILE_METER_CONFIG)
-        if not os.path.exists(meter_config_path):
-            print("Cannot read file: " + meter_config_path)
-            os._exit(0)
+            self.meter_config_volumio[METER_BKP] = None
+            
 
         c = ConfigParser()
-        c.read(meter_config_path)
-        available_meter_names = list()
+        c.read(self.meter_config_path)
         
         for section in c.sections():
             self.meter_config_volumio[section] = self.get_common_options(c, section)
@@ -127,6 +118,10 @@ class Volumio_ConfigFileParser(object):
             d[EXTENDED_CONF] = config_file.getboolean(section, EXTENDED_CONF)
         except:
             d[EXTENDED_CONF] = False
+        try:
+            d[METER_VISIBLE] = config_file.getboolean(section, METER_VISIBLE)
+        except:
+            d[METER_VISIBLE] = True
         try:
             spl = config_file.get(section, ALBUMART_POS).split(',')
             d[ALBUMART_POS] =  (int(spl[0]), int(spl[1]))
@@ -264,5 +259,19 @@ class Volumio_ConfigFileParser(object):
             d[TIMECOLOR] = (int(spl[0]), int(spl[1]), int(spl[2]))
         except:
             d[TIMECOLOR] = (255,255,255)
+
+        try:
+            d[SPECTRUM_VISIBLE] = config_file.getboolean(section, SPECTRUM_VISIBLE)
+        except:
+            d[SPECTRUM_VISIBLE] = False
+        try:
+            d[SPECTRUM] = config_file.get(section, SPECTRUM)
+        except:
+            d[SPECTRUM] = None             
+        try:
+            spl = config_file.get(section, SPECTRUM_SIZE).split(',')		
+            d[SPECTRUM_SIZE] = (int(spl[0]), int(spl[1]))
+        except:
+            d[SPECTRUM_SIZE] = None
         return d
-        
+

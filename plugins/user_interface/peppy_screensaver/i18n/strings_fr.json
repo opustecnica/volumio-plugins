@@ -29,6 +29,8 @@
     "RANDOMINTERVAL_DOC":"Intervalle de temps jusqu'à ce que le prochain VU-mètre soit affiché",
     "NEEDLE_CACHE":"Needle Cache",
     "NEEDLE_CACHE_DOC":"Un Raspberry avec 1 Go de RAM et une résolution d'affichage de 1920x1080 or 1280x800 est dur à la limite de mémoire. Par conséquent, le cache doit être désactivé afin d'économiser de la mémoire. Sinon, aucun mode aléatoire ou liste n'est possible",
+    "CACHESIZE":"Cache Size",
+    "CACHESIZE_DOC":"Nombre de VU-mètres en cache par résolution sélectionnée. Soyez prudent lorsque vous augmentez la valeur. Une valeur accrue nécessite plus de mémoire car davantage de ressources sont mises en cache. S'il n'y a pas assez de mémoire, le système peut se bloquer.",
     "ACTIVE_FOLDER":"Dossier de compteur actifs",
     "ACTIVE_FOLDER_DOC":"La sélection du dossier activement utilisé pour le VU-Meter dépend de la résolution de l'écran",
     "SMOOTH_BUFFER":"Aiguille lisse",
@@ -52,6 +54,9 @@
     "NODSPWARNING_TITLE":"FusionDsp n'est pas actif!",
     "NODSPWARNING":"Pour une fonctionnalité correcte, veuillez désactiver l'intégration de PeppyMeter ou activer FusionDsp.",
     "NOMETERSWARNING_TITLE":"Vous avez sélectionné un dossier de compteur vide!",
-    "NOMETERSWARNING":"Veuillez copier un modèle de compteur valide dans le dossier de résolution dans: /data/INTERNAL/peppy_screensaver/templates"
+    "NOMETERSWARNING":"Veuillez copier un modèle de compteur valide dans le dossier de résolution dans: /data/INTERNAL/peppy_screensaver/templates",
+    "NOTINLIST_TITLE":"Avertissement en mode liste",
+    "NOTINLIST":"La liste ne peut pas être enregistrée.<br />Les entrées de suivi ne sont pas disponibles dans la section Compteur:<br /><br />"
+
   }
 }

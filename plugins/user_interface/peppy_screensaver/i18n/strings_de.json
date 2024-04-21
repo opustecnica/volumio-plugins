@@ -29,6 +29,8 @@
     "RANDOMINTERVAL_DOC":"Zeitintervall bis das nächste VU_Meter angezeigt wird",
     "NEEDLE_CACHE":"Needle Cache",
     "NEEDLE_CACHE_DOC":"Ein Raspberry mit 1GB RAM und einer Displayauflösung von 1920x1080 oder 1280x800 ist hart am Speicherlimit. Deshalb muss der Cache abgeschaltet werden, um Speicher zu sparen. Ansonsten ist kein Random- oder List-Modus möglich",
+    "CACHESIZE":"Cache-Größe",
+    "CACHESIZE_DOC":"Anzahl der zwischengespeicherten VU_Meter pro ausgewählter Auflösung. Bitte seien Sie vorsichtig mit der Erhöhung des Wertes. Ein erhöhter Wert benötigt mehr Speicher, da mehr Resourcen zwischengespeichert werden. Reicht der Speicher nicht aus, kann es zum Einfrieren des Systems kommen.",
     "ACTIVE_FOLDER":"Aktiver VU_Meter Ordner",
     "ACTIVE_FOLDER_DOC":"Auswahl des aktiv verwendeten Ordners für VU-Meter in Abhängigkeit der Bildschirmauflösung",
     "SMOOTH_BUFFER":"Zeigerträgheit",
@@ -52,6 +54,9 @@
     "NODSPWARNING_TITLE":"FusionDsp ist nicht aktiv!",
     "NODSPWARNING":"Für eine korrekte Funktion schalten Sie bitte die PeppyMeter-Integration ab oder FusionDsp ein.",
     "NOMETERSWARNING_TITLE":"Sie haben einen leeren Meter-Folder ausgewählt!",
-    "NOMETERSWARNING":"Bitte kopieren Sie ein korrektes Meter-Template in den entsprechenden Auflösungs-Ordner in: /data/INTERNAL/peppy_screensaver/templates"
+    "NOMETERSWARNING":"Bitte kopieren Sie ein korrektes Meter-Template in den entsprechenden Auflösungs-Ordner in: /data/INTERNAL/peppy_screensaver/templates",
+    "NOTINLIST_TITLE":"List-Modus Warnung",
+    "NOTINLIST":"Liste kann nicht gespeichert werden.<br />Folgende Einträge sind nicht als Meter-Abschnitt vorhanden :<br /><br />"
+
   }
 }
