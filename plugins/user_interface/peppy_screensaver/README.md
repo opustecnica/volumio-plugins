@@ -3,6 +3,15 @@ PeppyMeter as screensaver for Volumio on raspberry pi
 >Many thanks to peppy.player, who provided the conditions for this
 
 -----
+##### Version 2.0.0 Beta
+* add peppy spectrum (samples available at time for 1920x1080 and 1280x800, more coming soon with stable version)
+* add transitions between different albumarts and different styles in random mode for a better look
+* add check for list mode, are all sections available which you want use
+* upper and lower character now allowed in meter sections and list mode
+* add UI option for cache size configuration (default is now 20 different meters) to use also bigger meter folders
+* exit peppy meter screen now also when music ends
+* fix some graphical artefacts on random mode with title change
+
 ##### Version 1.5.0
 * fix title info change issue
 * convert to pygame 2.6 with arm neon fpu support based on SDL2 for Raspberry pi3/4/5
