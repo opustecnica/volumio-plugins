@@ -467,13 +467,17 @@ class ImageTitleFactory():
             self.imgAlbumBackup = None
             self.imgAlbumBackup = self.screen.subsurface(self.album_rect).copy()
         # frame rate info                
-        if self.meter_section[PLAY_SAMPLE_POS]: 
+        if self.meter_section[PLAY_SAMPLE_POS] and (self.meter_section[PLAY_MAX] or self.meter_section[PLAY_SAMPLE_MAX]): 
             txt_size = size_txt('-44.1 kHz 24 bit-', self.meter_section[PLAY_SAMPLE_STYLE]) # max widht to create rectangle for clear area            
-            sample_pos_bk = self.meter_section[PLAY_SAMPLE_POS][0]
-            # center sample position
-            if self.meter_section[PLAY_CENTER] == True:
-                sample_pos_bk += int((self.meter_section[PLAY_MAX] - txt_size[0])/2)
-            self.sample_rect = pg.Rect((sample_pos_bk, self.meter_section[PLAY_SAMPLE_POS][1]), txt_size)
+            if self.meter_section[PLAY_SAMPLE_MAX]:
+                self.sample_rect = pg.Rect(self.meter_section[PLAY_SAMPLE_POS], (set_txt_max(self.meter_section[PLAY_SAMPLE_MAX]), txt_size[1]))
+            else:
+                sample_pos_x = self.meter_section[PLAY_SAMPLE_POS][0]
+                # center sample position
+                if self.meter_section[PLAY_CENTER] == True:
+                    sample_pos_x += int((self.meter_section[PLAY_MAX] - txt_size[0])/2)
+                self.sample_rect = pg.Rect((sample_pos_x, self.meter_section[PLAY_SAMPLE_POS][1]), txt_size)
+            
             self.imgSampleBackup = None
             self.imgSampleBackup = self.screen.subsurface(self.sample_rect).copy()
         
@@ -637,20 +641,20 @@ class ImageTitleFactory():
                     self.text_animator_album = None
                     self.text_animator_album = self.start_text_animator(self.imgAlbumBackup, imgAlbum_long, self.album_rect)
 
-        # frame rate info                
-        if self.meter_section[PLAY_SAMPLE_POS]: 
+            # frame rate info                
+            if self.meter_section[PLAY_SAMPLE_POS] and (self.meter_section[PLAY_MAX] or self.meter_section[PLAY_SAMPLE_MAX]): 
+                # copy clean surface from backup
+                self.screen.blit(self.imgSampleBackup, self.sample_rect)
+                
+                sample_pos_x = self.sample_rect.x
+                if self.meter_section[PLAY_CENTER] == True and self.meter_section[PLAY_SAMPLE_MAX]:
+                    # center sample position
+                    sample_pos_x = self.sample_rect.centerx - int(imgSample_long.get_width()/2)
 
-            sample_pos = self.meter_section[PLAY_SAMPLE_POS][0]
-            # center sample position
-            if self.meter_section[PLAY_CENTER] == True:
-                sample_pos += int((self.meter_section[PLAY_MAX] - imgSample_long.get_width())/2)
-
-            # copy clean surface from backup
-            self.screen.blit(self.imgSampleBackup, self.sample_rect)
-            # sample rate
-            self.screen.blit(imgSample_long, (sample_pos, self.sample_rect.y))
-            # update sample rectangle
-            pg.display.update(self.sample_rect)
+                # sample rate
+                self.screen.blit(imgSample_long, (sample_pos_x, self.sample_rect.y))
+                # update sample rectangle
+                pg.display.update(self.sample_rect)
 
                 
     # text animator functions

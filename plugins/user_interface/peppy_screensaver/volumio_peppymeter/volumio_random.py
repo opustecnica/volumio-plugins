@@ -82,16 +82,18 @@ class RandomControl(Thread):
 
             # restore default screen to pygame screen for all components
             self.meter.util.PYGAME_SCREEN = screen
-            for comp in self.meter.meter.components:
-                comp.screen = screen
             
             # start albunart
             if hasattr(self, "callback_start"):
                 self.callback_start(self.meter.meter)
 
-            # volume fadeIn if not spectrum
             self.meter_section_volumio = self.meter_config_volumio[self.meter_config[METER]]
             if self.meter_section_volumio[METER_VISIBLE] == True:            
+                # restore screen screen for meters
+                for comp in self.meter.meter.components:
+                    comp.screen = screen
+
+                # volume fadeIn for meters
                 while vol <= self.meter.current_volume:
                     self.meter.meter.set_volume(vol)
                     vol += 10

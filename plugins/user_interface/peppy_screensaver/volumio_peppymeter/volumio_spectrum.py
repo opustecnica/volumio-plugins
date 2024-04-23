@@ -77,7 +77,9 @@ class SpectrumOutput(Thread):
         """ Update method, called from meters display output """
         
         if hasattr(self, 'sp') and self.sp is not None:
-            self.sp.clean_draw_update()
+            # if background is ready
+            if self.sp.components[0].content is not None:
+                self.sp.clean_draw_update()
 
     
     def stop_thread(self):

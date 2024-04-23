@@ -44,6 +44,7 @@ PLAY_TYPE_COLOR = "playinfo.type.color"
 PLAY_TYPE_DIM = "playinfo.type.dimension"
 PLAY_SAMPLE_POS = "playinfo.samplerate.pos"
 PLAY_SAMPLE_STYLE = "PLAY_SAMPLE_STYLE"
+PLAY_SAMPLE_MAX = "playinfo.samplerate.maxwidth"
 TIME_REMAINING_POS = "time.remaining.pos"
 TIMECOLOR = "time.remaining.color" 
 FONT_STYLE_B = "bold"
@@ -227,6 +228,10 @@ class Volumio_ConfigFileParser(object):
         except:
             d[PLAY_SAMPLE_POS] = None
             d[PLAY_SAMPLE_STYLE] = FONT_STYLE_B
+        try:
+            d[PLAY_SAMPLE_MAX] = config_file.getint(section, PLAY_SAMPLE_MAX)
+        except:
+            d[PLAY_SAMPLE_MAX] = None
 
         try:
             spl = config_file.get(section, TIME_REMAINING_POS).split(',')		

@@ -41,11 +41,6 @@ class CallBack:
     def peppy_meter_start(self, meter):
         # print('start')
         self.meter_section = self.meter_config_volumio[self.meter_config[METER]]        
-        
-        # start albumart animator
-        self.album_animator = None
-        self.album_animator = AlbumartAnimator(self.util, self.meter_config_volumio)
-        self.album_animator.start()
 
         if self.meter_section[EXTENDED_CONF] == True:
             # stop meters when they are not visible
@@ -59,7 +54,12 @@ class CallBack:
                 self.spectrum_output.start()
         
             # print (self.get_memory() / 1024)
-    
+
+        # start albumart animator
+        self.album_animator = None
+        self.album_animator = AlbumartAnimator(self.util, self.meter_config_volumio)
+        self.album_animator.start()
+        
     def peppy_meter_stop(self, meter):
         # print('stop')
         # stop albumart animator, if is running
