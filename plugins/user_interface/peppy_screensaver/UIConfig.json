@@ -17,6 +17,7 @@
                                       "alsaSelection",
                                       "useDSP",
                                       "useSpotify",
+                                      "useUSBDAC",
                                       "useAirplay",
                                       "timeout",
                                       "activeFolder",
@@ -34,7 +35,7 @@
                              "visibleIf": {"field": "useDSP", "value": false},
                              "doc": "TRANSLATE.PEPPY_SCREENSAVER.ALSA_SELECTION_DOC",
                              "label": "TRANSLATE.PEPPY_SCREENSAVER.ALSA_SELECTION",
-                             "value": {"value": 0, "label": "TRANSLATE.PEPPY_SCREENSAVER.ALSA_SELECTION_0" },
+                             "value": {"value": 1, "label": "TRANSLATE.PEPPY_SCREENSAVER.ALSA_SELECTION_1" },
                                "options": [
                                  {
                                     "value": 0,
@@ -59,6 +60,14 @@
                              "visibleIf": {"field": "useDSP", "value": false},
                              "doc": "TRANSLATE.PEPPY_SCREENSAVER.SPOTIFY_DOC",
                              "label": "TRANSLATE.PEPPY_SCREENSAVER.SPOTIFY",
+                             "value": false
+                            },
+                            {
+                             "id": "useUSBDAC",
+                             "element": "switch",
+                             "visibleIf": {"field": "useSpotify", "value": true},
+                             "doc": "TRANSLATE.PEPPY_SCREENSAVER.USBDAC_DOC",
+                             "label": "TRANSLATE.PEPPY_SCREENSAVER.USBDAC",
                              "value": false
                             },
                             {

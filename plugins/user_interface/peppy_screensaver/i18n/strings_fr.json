@@ -8,6 +8,8 @@
     "ALSA_SELECTION_1":"DSD native (audio bitperfect)",
     "SPOTIFY":"Intégration Spotify",
     "SPOTIFY_DOC":"Rediriger l'audio Spotify pour l'utiliser également avec PeppyMeter",
+    "USBDAC":"Spotify compatibilité avec USB-DACs",
+    "USBDAC_DOC":"Dans certaines circonstances, Spotify cesse de fonctionner après 10 secondes avec les USB-DAC. Dans ce cas, activez ce commutateur.<br />Cela insère une copie du flux PCM pour découpler la carte son et la sortie Spotify.<br />Veuillez activer ce commutateur uniquement si vous obtenez cet effet, sinon Spotify pourrait générer des clics dans le son.",
     "AIRPLAY":"Intégration Airplay",
     "AIRPLAY_DOC":"Rediriger l'audio Airplay pour l'utiliser également avec PeppyMeter",
     "DSP":"Intégration FusionDsp",

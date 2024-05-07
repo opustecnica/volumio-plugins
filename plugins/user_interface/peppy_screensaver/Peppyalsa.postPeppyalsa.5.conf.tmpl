@@ -39,12 +39,17 @@ pcm.mpd_peppyalsa{
 # ---> separate airplay input
 pcm.airplay {
 	type meter
-	slave.pcm "copy_output"
+	slave.pcm "postpeppyalsa"
 	scopes.0 peppyalsa
 }
 
 # ---> separate spotify input
-pcm.spotify {
+pcm.${spotDirect} {
+  type empty
+  slave.pcm "postpeppyalsa"
+}
+
+pcm.${spotMeter} {
   type plug
   slave {
     pcm "spd_peppyalsa"
@@ -85,9 +90,9 @@ pcm.dummy {
 	device 0
 }
 
-# needed for some sound cards otherwiese Spotify/Airplay stops playing after 10 seconds
+# needed for some sound cards otherwiese Spotify stops playing after 10 seconds
 pcm.copy_output {
-  type copy
+  type ${type}
   slave.pcm "postpeppyalsa"
 }
 

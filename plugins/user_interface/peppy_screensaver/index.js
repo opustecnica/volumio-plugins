@@ -33,6 +33,7 @@ const MPD_include_tmpl = PluginPath + '/mpd_custom.conf';
 const MPD_include = '/data/configuration/music_service/mpd/mpd_custom.conf';
 const AIRtmpl = '/volumio/app/plugins/music_service/airplay_emulation/shairport-sync.conf.tmpl';
 const AIR = '/tmp/shairport-sync.conf.tmpl';
+const asound = '/Peppyalsa.postPeppyalsa.5.conf';
 
 var availMeters = '';
 var uiNeedsUpdate;
@@ -99,8 +100,11 @@ peppyScreensaver.prototype.onStart = function() {
         if (base_folder_S == '/') {base_folder_S = SpectrumPath + '/';}
 	}
 	
-    // copy MPD_include file
+    // copy MPD_include file and set output
     if (!fs.existsSync(MPD_include)) {self.copy_MPD_include(MPD_include_tmpl, MPD_include);}
+    // only if it not correct deleted on uninstall
+    var enableDSD = parseInt(self.config.get('alsaSelection'),10) == 1 ? true : false;
+    self.MPD_setOutput(MPD_include, enableDSD);
         
     if (self.IfBuster()) {
       //_________________ detect Buster _________________
@@ -156,11 +160,15 @@ peppyScreensaver.prototype.onStart = function() {
       // synchronize external spotify settings with own configuration  
       if (fs.existsSync(spotify_config) && self.getPluginStatus ('music_service', 'spop') === 'STARTED'){
         var spotifydata = fs.readFileSync(spotify_config, 'utf8'); 
-        var useSpot = self.config.get('useSpotify');
-        if ((useSpot && spotifydata.includes('volumio')) || (!useSpot && spotifydata.includes('spotify'))) {
-            self.switch_Spotify(useSpot);
+        //var useSpot = self.config.get('useSpotify');
+        //if ((useSpot && spotifydata.includes('volumio')) || (!useSpot && spotifydata.includes('spotify'))) {
+        //    self.switch_Spotify(useSpot);
+        //}
+        var useDSP = fs.existsSync(dsp_config) && self.config.get('useDSP');
+        if ((!useDSP && spotifydata.includes('volumio')) || (useDSP && spotifydata.includes('spotify'))) {
+            self.switch_Spotify(!useDSP);
         }
-      }
+      }  
 
 	  // synchronize external airplay settings with own configuration
       if (fs.existsSync(AIRtmpl) && self.getPluginStatus ('music_service', 'airplay_emulation') === 'STARTED'){
@@ -179,23 +187,31 @@ peppyScreensaver.prototype.onStart = function() {
     // event function on change state, to start PeppyMeter    
     socket.emit('getState', '');
     socket.on('pushState', function (state) {
-
+        
+        // screensaver only for enabled Spotify/Airplay support, enabled DSP and all other
+        var DSP_ON = fs.existsSync(dsp_config) && self.config.get('useDSP');
+		var Spotify_ON = fs.existsSync(spotify_config) && self.getPluginStatus ('music_service', 'spop') === 'STARTED' && self.config.get('useSpotify') && state.service === 'spop';
+        var Airplay_ON = fs.existsSync(AIRtmpl) && self.getPluginStatus ('music_service', 'airplay_emulation') === 'STARTED' && self.config.get('useAirplay') && state.service === 'airplay_emulation';
+		var Other_ON = state.service !== 'spop' && state.service !== 'airplay_emulation';
+        
         if (state.status === 'play' && !lastStateIsPlaying) {
-          lastStateIsPlaying = true;
-          var ScreenTimeout = (parseInt(self.config.get('timeout'),10)) * 1000;
+          if (DSP_ON || Spotify_ON || Airplay_ON || Other_ON) {
+            lastStateIsPlaying = true;
+            var ScreenTimeout = (parseInt(self.config.get('timeout'),10)) * 1000;
           
-          if (ScreenTimeout > 0){ // for 0 do nothing
-            Timeout = setInterval(function () {
-              if (!fs.existsSync(runFlag)){
-                exec( RunPeppyFile, { uid: 1000, gid: 1000 }, function (error, stdout, stderr) {        
-                  if (error !== null) {
-                    self.logger.error(id + 'Error start PeppyMeter: ' + error);
-                  } else {
-                    self.logger.info(id + 'Start PeppyMeter');
-                  }    
-                });
-              }        
-            }, ScreenTimeout);
+            if (ScreenTimeout > 0){ // for 0 do nothing
+                Timeout = setInterval(function () {
+                  if (!fs.existsSync(runFlag)){
+                    exec( RunPeppyFile, { uid: 1000, gid: 1000 }, function (error, stdout, stderr) {        
+                    if (error !== null) {
+                        self.logger.error(id + 'Error start PeppyMeter: ' + error);
+                    } else {
+                        self.logger.info(id + 'Start PeppyMeter');
+                    }    
+                  });
+                  }        
+                }, ScreenTimeout);
+            }
           }
         } else if (state.status !== 'play' && lastStateIsPlaying) {
           clearTimeout(Timeout);
@@ -325,31 +341,34 @@ peppyScreensaver.prototype.getUIConfig = function() {
                             self.config.set('useSpotify', false);
                         } else {
                             uiconf.sections[0].content[2].value = self.config.get('useSpotify');
+                            uiconf.sections[0].content[3].value = self.config.get('useUSBDAC');
                         }
                     } else {
-                        uiconf.sections[0].content[2].hidden = true;
+                        uiconf.sections[0].content[2].hidden = true; // hide spotify
+                        uiconf.sections[0].content[3].hidden = true; // hide USB-DAC
                     }
                 } else {
                     self.config.set('useSpotify', false);
                     uiconf.sections[0].content[2].hidden = true;
+                    uiconf.sections[0].content[3].hidden = true;
                 }
                 // Airplay integration
                 if (self.getPluginStatus ('music_service', 'airplay_emulation') === 'STARTED'){
                     if (self.config.get('useDSP')) {
                         self.config.set('useAirplay', false);
                     } else {
-                        uiconf.sections[0].content[3].value = self.config.get('useAirplay');
+                        uiconf.sections[0].content[4].value = self.config.get('useAirplay');
                     }
                 } else {
-                    uiconf.sections[0].content[3].hidden = true;
+                    uiconf.sections[0].content[4].hidden = true;
                 }
             }
             
             // screensaver timeout
-            uiconf.sections[0].content[4].value = self.config.get('timeout');
-            minmax[0] = [uiconf.sections[0].content[4].attributes[2].min,
-              uiconf.sections[0].content[4].attributes[3].max,
-              uiconf.sections[0].content[4].attributes[0].placeholder];
+            uiconf.sections[0].content[5].value = self.config.get('timeout');
+            minmax[0] = [uiconf.sections[0].content[5].attributes[2].min,
+              uiconf.sections[0].content[5].attributes[3].max,
+              uiconf.sections[0].content[5].attributes[0].placeholder];
                                       
             // active folder
             // fill selection list with custom folders
@@ -359,7 +378,7 @@ peppyScreensaver.prototype.getUIConfig = function() {
                 if (stat.isDirectory() && file.includes ('_')) {
                     var partFile = file.split('_');
                     var str_empty = fs.existsSync(base_folder_P + file + '/meters.txt') ? '' : ' (empty)';
-                    self.configManager.pushUIConfigParam(uiconf, 'sections[0].content[5].options', {
+                    self.configManager.pushUIConfigParam(uiconf, 'sections[0].content[6].options', {
                         value: file,
                         label: (partFile[1]).replace(upperc, c => c.toUpperCase()) + '-' +  partFile[2] + ' ' + partFile[0] + str_empty
                     });
@@ -370,36 +389,36 @@ peppyScreensaver.prototype.getUIConfig = function() {
             if (meterFolder.includes ('_')) {
                 var partFile = meterFolder.split('_');
                 var str_empty = fs.existsSync(base_folder_P + meterFolder + '/meters.txt') ? '' : ' (empty)';
-                uiconf.sections[0].content[5].value.value = meterFolder;
-                uiconf.sections[0].content[5].value.label = (partFile[1]).replace(upperc, c => c.toUpperCase()) + '-' +  partFile[2] + ' ' + partFile[0] + str_empty;
+                uiconf.sections[0].content[6].value.value = meterFolder;
+                uiconf.sections[0].content[6].value.label = (partFile[1]).replace(upperc, c => c.toUpperCase()) + '-' +  partFile[2] + ' ' + partFile[0] + str_empty;
             } else {
-                uiconf.sections[0].content[5].value.value = self.config.get('activeFolder');
-                uiconf.sections[0].content[5].value.label = self.config.get('activeFolder_title');
+                uiconf.sections[0].content[6].value.value = self.config.get('activeFolder');
+                uiconf.sections[0].content[6].value.label = self.config.get('activeFolder_title');
             }
 
             // smooth buffer
-            uiconf.sections[0].content[6].value = parseInt(peppy_config.data.source['smooth.buffer.size'], 10);                                
-            minmax[1] = [uiconf.sections[0].content[6].attributes[2].min,
-                uiconf.sections[0].content[6].attributes[3].max,
-                uiconf.sections[0].content[6].attributes[0].placeholder];
+            uiconf.sections[0].content[7].value = parseInt(peppy_config.data.source['smooth.buffer.size'], 10);                                
+            minmax[1] = [uiconf.sections[0].content[7].attributes[2].min,
+                uiconf.sections[0].content[7].attributes[3].max,
+                uiconf.sections[0].content[7].attributes[0].placeholder];
 
             // needle cache
             var needleCache = (peppy_config.current['use.cache']).toLowerCase() == 'true' ? true : false;
-            uiconf.sections[0].content[7].value = needleCache;
+            uiconf.sections[0].content[8].value = needleCache;
 
             // cache size
-            uiconf.sections[0].content[8].value = parseInt(peppy_config.current['cache.size'], 10);                                
-            minmax[2] = [uiconf.sections[0].content[8].attributes[2].min,
-                uiconf.sections[0].content[8].attributes[3].max,
-                uiconf.sections[0].content[8].attributes[0].placeholder];
+            uiconf.sections[0].content[9].value = parseInt(peppy_config.current['cache.size'], 10);                                
+            minmax[2] = [uiconf.sections[0].content[9].attributes[2].min,
+                uiconf.sections[0].content[9].attributes[3].max,
+                uiconf.sections[0].content[9].attributes[0].placeholder];
                 
             // mouse support
             var mouseSupport = (peppy_config.sdl.env['mouse.enabled']).toLowerCase() == 'true' ? true : false;
-            uiconf.sections[0].content[9].value = mouseSupport;
+            uiconf.sections[0].content[10].value = mouseSupport;
 
             // display output
-            uiconf.sections[0].content[10].value.value = self.config.get('displayOutput');
-            uiconf.sections[0].content[10].value.label = 'Display=' + self.config.get('displayOutput');
+            uiconf.sections[0].content[11].value.value = self.config.get('displayOutput');
+            uiconf.sections[0].content[11].value.label = 'Display=' + self.config.get('displayOutput');
              
             // section 1 ------------
             availMeters = '';
@@ -489,6 +508,7 @@ peppyScreensaver.prototype.savePeppyMeterConf = function (confData) {
         if (self.config.get('useDSP') != confData.useDSP) {
             self.config.set('useDSP', confData.useDSP);
             self.checkDSPactive(!confData.useDSP);
+            self.switch_Spotify(!confData.useDSP);
             noChanges = false;
             uiNeedsReboot = true;
         }
@@ -505,18 +525,26 @@ peppyScreensaver.prototype.savePeppyMeterConf = function (confData) {
         }
     }
 
-    // write spotify
+    // write spotify /USB-DAC
     if (self.IfBuster() && self.getPluginStatus ('music_service', 'spop') === 'STARTED') {
         if (confData.useDSP) {
             self.config.set('useSpotify', false);
-            self.switch_Spotify(false);
-        } else if (self.config.get('useSpotify') != confData.useSpotify) {
-            self.config.set('useSpotify', confData.useSpotify);
-            self.switch_Spotify(confData.useSpotify);
-            noChanges = false;
+            //self.switch_Spotify(false);
+        } else {
+            if (self.config.get('useSpotify') != confData.useSpotify) {
+                self.config.set('useSpotify', confData.useSpotify);
+                //self.switch_Spotify(confData.useSpotify);
+                noChanges = false;
+                uiNeedsReboot = true;
+            }
+            if (self.config.get('useUSBDAC') != confData.useUSBDAC) {
+                self.config.set('useUSBDAC', confData.useUSBDAC);
+                noChanges = false;
+                uiNeedsReboot = true;
+            }
         }
     }
-
+    
     // write airplay
     if (self.IfBuster() && self.getPluginStatus ('music_service', 'airplay_emulation') === 'STARTED'){
         if (confData.useDSP) {
@@ -1190,13 +1218,16 @@ peppyScreensaver.prototype.recreate_mpdconf = function () {
 // buster write asound.conf from template and remove variables
 peppyScreensaver.prototype.writeAsoundConfigModular = function (alsaConf) {
   var self = this;
-  var asoundTempl = __dirname + '/Peppyalsa.postPeppyalsa.5.conf.tmpl';
+  var asoundTmpl = __dirname + asound + '.tmpl';
+  var asoundConf = __dirname + '/asound' + asound;
   var conf;
   var defer = libQ.defer();
   var useDSP = fs.existsSync(dsp_config) && self.config.get('useDSP');
-  
-  if (fs.existsSync(asoundTempl)) {
-    var asounddata = fs.readFileSync(asoundTempl, 'utf8');
+  var plugType = self.config.get('useUSBDAC') ? 'copy' : 'empty';
+  var useSpot = self.config.get('useSpotify');
+
+  if (fs.existsSync(asoundTmpl)) {
+    var asounddata = fs.readFileSync(asoundTmpl, 'utf8');
     
     if (alsaConf == 1) { // DSD native
         if (!useDSP) {
@@ -1209,28 +1240,44 @@ peppyScreensaver.prototype.writeAsoundConfigModular = function (alsaConf) {
 
     conf = conf.replace('${alsaMeter}', 'peppy1_off');
     conf = conf.replace('${alsaDirect}', 'peppy2_off');
-    
+    conf = conf.replace('${type}', plugType);
+
+    //for spotify
+    if (!useDSP) {
+        if (useSpot){
+            conf = conf.replace('${spotMeter}', 'spotify');
+        } else {
+            conf = conf.replace('${spotDirect}', 'spotify');
+        }
+    }
+    conf = conf.replace('${spotMeter}', 'spotify2_off');
+    conf = conf.replace('${spotDirect}', 'spotify1_off');
+        
     // change alsa config depend on outputdevice and mixer
     // no reformat possible for softmixer
     // for internal cards (hdmi, headphone) 44100 kHz
     // for external sound cards 16000 kHz (the only rate without error)
-    var outputdevice = self.getAlsaConfigParam('outputdevice');
-    var softmixer = self.getAlsaConfigParam('softvolume');
+    // removed since 3.569
+    //var outputdevice = self.getAlsaConfigParam('outputdevice');
+    //var softmixer = self.getAlsaConfigParam('softvolume');
         
-    if (outputdevice == 'softvolume') {
-        outputdevice = self.getAlsaConfigParam ('softvolumenumber');
-    }
-// removed since 3.569
+    //if (outputdevice == 'softvolume') {
+    //    outputdevice = self.getAlsaConfigParam ('softvolumenumber');
+    //}
+
 //    var slave_b = softmixer ? 'mpd_peppyalsa' : 'reformat'; 
 //    conf = conf.replace('${slave_b}', slave_b);            
 //    var rate = parseInt(outputdevice,10) > 1 ? 16000 : 44100;
 //    conf = conf.replace('${rate}', rate);    
         
-    fs.writeFile(__dirname + '/asound/Peppyalsa.postPeppyalsa.5.conf', conf, 'utf8', function (err) {
+    fs.writeFile(asoundConf, conf, 'utf8', function (err) {
         if (err) {
-            self.logger.info('Cannot write Peppyalsa.postPeppyalsa.5.conf: ' + err);
+            self.logger.info('Cannot write ' + asoundConf + ': ' + err);
         } else {
-            //self.logger.info('Peppyalsa.postPeppyalsa.5.conf file written');  
+            //self.logger.info(asoundConf + ' file written');
+            if (fs.existsSync(spotify_config) && self.getPluginStatus ('music_service', 'spop') === 'STARTED'){
+                var cmdret = self.commandRouter.executeOnPlugin('music_service', 'spop', 'initializeLibrespotDaemon', '');            
+            }
             defer.resolve();
         }
     });

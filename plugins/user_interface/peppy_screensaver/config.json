@@ -1,9 +1,13 @@
 {
   "alsaSelection": {
-    "value":"0",
+    "value":"1",
     "type":"number"
   },
   "useSpotify":{
+    "value":false,
+    "type":"boolean"
+  },
+  "useUSBDAC":{
     "value":false,
     "type":"boolean"
   },

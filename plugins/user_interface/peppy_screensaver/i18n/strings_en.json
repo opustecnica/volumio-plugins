@@ -8,6 +8,8 @@
     "ALSA_SELECTION_1":"DSD native (bitperfect audio)",
     "SPOTIFY":"Spotify integration",
     "SPOTIFY_DOC":"Redirect Spotify audio to use it also with PeppyMeter",
+    "USBDAC":"Spotify compatibility with USB-DACs",
+    "USBDAC_DOC":"In some circumstances Spotify stops playing after 10 seconds with USB-DAC's. In this case turn on this switch.<br />This inserts a copy of PCM stream to decouple the sound card and Spotify output.<br />Please only activate this switch if you have this effect, otherwise Spotify may generate clicks in the sound.",
     "AIRPLAY":"Airplay integration",
     "AIRPLAY_DOC":"Redirect Airplay audio to use it also with PeppyMeter",
     "DSP":"FusionDsp integration",

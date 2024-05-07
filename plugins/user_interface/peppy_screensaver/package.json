@@ -1,6 +1,6 @@
 {
   "name": "peppy_screensaver",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "peppy screensaver",
   "main": "index.js",
   "private": true,
@@ -19,7 +19,7 @@
       "buster"
     ],
     "details": "The plugin use PeppyMeter as screensaver",
-    "changelog": "Kompatibility with FusionDsp and Spotify",
+    "changelog": "implement spectrum",
     "architectures": [
       "armhf"
     ],

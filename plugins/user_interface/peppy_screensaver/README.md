@@ -3,6 +3,11 @@ PeppyMeter as screensaver for Volumio on raspberry pi
 >Many thanks to peppy.player, who provided the conditions for this
 
 -----
+##### Version 2.1.0
+* complete spectrum templates for all resolutions
+* add an option for USB-DAC's to prevent abbort playing with spotify
+* add the possibility to disable screensaver explicit for Spotify
+ 
 ##### Version 2.0.0 Beta
 * add peppy spectrum (samples available at time for 1920x1080 and 1280x800, more coming soon with stable version)
 * add transitions between different albumarts and different styles in random mode for a better look
