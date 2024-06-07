@@ -21,6 +21,10 @@
                                       "useAirplay",
                                       "timeout",
                                       "activeFolder",
+                                      "positionType",
+                                      "position_x",
+                                      "position_y",
+                                      "animation",
                                       "smoothBuffer",
                                       "needleCache",
                                       "cachesize",
@@ -116,6 +120,60 @@
                                     "label": "BuildIn 1280x400"
                                  }
                                ]
+                            },
+                            {
+                             "id": "positionType",
+                             "element": "select",
+                             "doc": "TRANSLATE.PEPPY_SCREENSAVER.POSITION_TYPE_DOC",
+                             "label": "TRANSLATE.PEPPY_SCREENSAVER.POSITION_TYPE",
+                             "value": {"value": "0", "label": "centered" },
+                               "options": [
+                                 {
+                                    "value": 0,
+                                    "label": "centered"
+                                 },
+                                 {
+                                    "value": 1,
+                                    "label": "manually"
+                                 }
+                               ]
+                            },                            
+                            {
+                             "id": "position_x",
+                             "element": "input",
+                             "type": "number",
+                             "visibleIf": {"field": "positionType", "value": 1},
+                             "doc": "TRANSLATE.PEPPY_SCREENSAVER.POS_X_DOC",
+                             "label": "TRANSLATE.PEPPY_SCREENSAVER.POS_X",
+                             "attributes": [
+                                             {"placeholder": 0},
+                                             {"maxlength": 4},
+                                             {"min": 0},
+                                             {"max": 3840}
+                                           ],
+                             "value": 0
+                            },
+                            {
+                             "id": "position_y",
+                             "element": "input",
+                             "type": "number",
+                             "visibleIf": {"field": "positionType", "value": 1},
+                             "doc": "TRANSLATE.PEPPY_SCREENSAVER.POS_Y_DOC",
+                             "label": "TRANSLATE.PEPPY_SCREENSAVER.POS_Y",
+                             "attributes": [
+                                             {"placeholder": 0},
+                                             {"maxlength": 4},
+                                             {"min": 0},
+                                             {"max": 2160}
+                                           ],
+                             "value": 0
+                            },
+                            {
+                             "id": "animation",
+                             "element": "switch",
+                             "doc": "TRANSLATE.PEPPY_SCREENSAVER.ANIMATION_DOC",
+                             "label": "TRANSLATE.PEPPY_SCREENSAVER.ANIMATION",
+                             "value": true
                             },
                             {
                              "id": "smoothBuffer",

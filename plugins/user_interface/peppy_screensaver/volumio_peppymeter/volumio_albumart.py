@@ -9,7 +9,7 @@ import pygame as pg
 import requests
 import io
 import ctypes
-
+import socketio
 
 if not pg.version.ver.startswith("2"):
     try:
@@ -18,7 +18,6 @@ if not pg.version.ver.startswith("2"):
         pass # if it not properly installed
                 
 from PIL import Image, ImageOps
-from socketIO_client import SocketIO
 from threading import Thread, Timer
 
 from configfileparser import METER, BASE_PATH, METER_FOLDER, UI_REFRESH_PERIOD 
@@ -41,27 +40,23 @@ class AlbumartAnimator(Thread):
         self.meter_config = self.util.meter_config
         self.meter_config_volumio = meter_config_volumio
         self.meter_section = self.meter_config_volumio[self.meter_config[METER]]
-
-        self.random_meter = False
-        self.list_meter = False        
-        if self.meter_config_volumio[METER_BKP] == "random":
-            self.random_meter = True
-        elif "," in self.meter_config_volumio[METER_BKP]:
-            self.list_meter = True
-
+        self.random_title = (self.meter_config_volumio[METER_BKP] == "random" or "," in self.meter_config_volumio[METER_BKP]) and self.meter_config_volumio[RANDOM_TITLE]
+        self.sio = socketio.Client()
+        # print ('<-- init')
         
     def run(self):
         """ Thread method. show all title infos and albumart. """
  		
+        @self.sio.on ('pushState')
         def on_push_state(*args):
 
             if args[0]['status'] == 'play':
-                        
-                # for random/list mode and 'change on title' start only on first run
-                if (self.random_meter == False and self.list_meter == False) or self.meter_config_volumio[RANDOM_TITLE] != True or self.first_run == True:
 
-                    if self.meter_section[EXTENDED_CONF] == True:
-                        
+                if self.meter_section[EXTENDED_CONF] == True:                        
+                    # for random/list mode with 'change on title' start only on initializiation (first run)
+                    if self.random_title == False or self.first_run == True:
+                        # print ('play')
+
                         # draw albumart
                         if args[0]['albumart'] != self.albumart_mem:
                             self.albumart_mem = args[0]['albumart']
@@ -70,55 +65,48 @@ class AlbumartAnimator(Thread):
                             #title_factory.render_aa()
                             
                             # as thread to speedup start
-                            if hasattr(self, 'AA_Thread'):
-                                del self.AA_Thread
-                            self.AA_Thread = Thread(target = albumart_thread, args=(title_factory, self.albumart_mem, ))
-                            self.AA_Thread.start()
-
+                            try:
+                                if hasattr(self, 'AA_Thread'):
+                                    del self.AA_Thread
+                                self.AA_Thread = Thread(target = albumart_thread, args=(title_factory, self.albumart_mem, ))
+                                self.AA_Thread.start()
+                            except:
+                                pass
+                                
                         # draw title info
-                        #title_factory.get_title_data(args[0])
-                        #title_factory.render_text()
+                        if args[0]['title'] + args[0]['artist'] != self.position_mem:                        
+                            self.position_mem = args[0]['title'] + args[0]['artist']
+                            #title_factory.get_title_data(args[0])
+                            #title_factory.render_text()
                         
-                        # as thread to speedup start
-                        if hasattr(self, 'TI_Thread'):
-                            del self.TI_Thread
-                        TI_Thread = Thread(target = titleinfo_thread, args=(title_factory, args[0], ))
-                        TI_Thread.start()
-                        
+                            # as thread to speedup start
+                            try:
+                                if hasattr(self, 'TI_Thread'):
+                                    del self.TI_Thread
+                                TI_Thread = Thread(target = titleinfo_thread, args=(title_factory, args[0], ))
+                                TI_Thread.start()
+                            except:
+                                pass
+                                
                         self.first_run = False
-                    self.status_mem = 'play'
-
-                # draw reamining time, timer is started for countdown  
-                if self.meter_section[TIME_REMAINING_POS]:
-                    duration = int(args[0]['duration']) if 'duration' in args[0] else 0
-                    seek = int(args[0]['seek']) if 'seek' in args[0] and args[0]['seek'] is not None else 0
-                    service = args[0]['service'] if 'service' in args[0] else ''					
-                    self.time_args = [duration, seek, service]
-
-                    # repeat timer start, initial with duration and seek -> remaining_time 
-                    try:
-                        self.timer_initial = True
-                        self.timer_part = 0
-                        timer.start() 
-                    except:
-                        pass
                         
-            # simulate mouse event, if pause pressed
-            elif self.status_mem == 'play':
-                if args[0]['status'] == 'pause':
-                    #print ('pause')
-                    timer.cancel()
-                    self.status_mem = 'pause'
-                    pg.event.post(pg.event.Event(pg.MOUSEBUTTONUP))
+                    # draw reamining time, timer is started for countdown  
+                    if self.meter_section[TIME_REMAINING_POS]:
+                        duration = int(args[0]['duration']) if 'duration' in args[0] else 0
+                        seek = int(args[0]['seek']) if 'seek' in args[0] and args[0]['seek'] is not None else 0
+                        service = args[0]['service'] if 'service' in args[0] else ''					
+                        if seek != self.seek_mem:
+                            self.seek_mem = seek
+                            self.time_args = [duration, seek, service]
+                            # repeat timer start, initial with duration and seek -> remaining_time 
+                            try:
+                                self.timer_initial = True
+                                self.timer_part = 0
+                                timer.start()
+                                time.sleep(0.1)
+                            except:
+                                pass
 
-                # simulate mouse event, if stop pressed for webradio, or title ended
-                elif args[0]['status'] == 'stop' and (args[0]['service'] == 'webradio' or args[0]['uri'] == ''):
-                    timer.cancel()
-                    self.status_mem = 'stop'
-                    pg.event.post(pg.event.Event(pg.MOUSEBUTTONUP))
-				
-            else:
-                self.status_mem = 'other'
 
         def albumart_thread(*args):
             """ render albumart as thread """
@@ -141,22 +129,25 @@ class AlbumartAnimator(Thread):
             self.timer_part += 1
             if self.timer_part == 10:
                 self.timer_part = 0
-			
+		
+        @self.sio.on ('connect')
         def on_connect():
-            #print('connect')
-            self.socketIO.on('pushState', on_push_state)
-            self.socketIO.emit('getState', '', on_push_state)
-
-        #def on_disconnect():
-            # print('disconnect')
-            # stop all ticker daemons
-            #title_factory.stop_text_animator()
-            #timer.cancel()
+            # print('connect')
+            if hasattr(self, 'sio') and self.sio is not None and self.run_flag == True:
+                self.sio.emit('getState')
+                # print('emit')
+            
+        # @self.sio.on ('disconnect')            
+        # def on_disconnect():
+        #    while self.sio.connected:
+        #        self.sio.wait()
         
         # ---> start run ---->
         self.albumart_mem = ''
-        self.status_mem = 'pause'
+        self.position_mem = ''
+        self.seek_mem = -1
         self.first_run = True
+        # print ('start')
 
         if self.meter_section[EXTENDED_CONF] == True:		
             title_factory = ImageTitleFactory(self.util, self.meter_config_volumio)
@@ -168,14 +159,13 @@ class AlbumartAnimator(Thread):
 
         self.timer_part = 0
         timer = RepeatTimer(0.1, remaining_time)
+        self.sio.connect('http://localhost:3000')
         
-        self.socketIO = SocketIO('localhost', 3000)
-        self.socketIO.once('connect', on_connect)
-        #socketIO.on('disconnect', on_disconnect)
-                            
         # wait until disconnect
-        self.socketIO.wait()
-        #print('disconnect')		
+        while self.run_flag:
+            self.sio.sleep(0.1)
+        self.sio.disconnect()
+        # print('disconnect')		
         # <---- wait run <----
         
         # ----> on exit
@@ -198,17 +188,15 @@ class AlbumartAnimator(Thread):
         del self.util
         del self.meter_config
         del self.meter_config_volumio
-        del self.socketIO
+        del self.sio
         self.trim_memory()
+        # print ('exit -->')
         # <---- exit <----
 
     def stop_thread(self):
         """ Stop thread """
             
-        # socketIO disconnect stops the socketIO.wait
-        if hasattr(self, 'socketIO') and self.socketIO is not None:
-            self.socketIO.disconnect()
-        
+        self.run_flag = False
         # wait for threads finshed (timer, text animator) 
         # time.sleep(0.12)
         

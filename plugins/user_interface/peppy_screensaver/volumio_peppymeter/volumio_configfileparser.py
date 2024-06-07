@@ -1,4 +1,4 @@
-# Copyright 2021 PeppyMeter for Volumio by 2aCD
+# Copyright 2024 PeppyMeter for Volumio by 2aCD
 # 
 # This file is part of PeppyMeter for Volumio
 # 
@@ -12,10 +12,16 @@ FILE_CONFIG = "config.txt"
 FILE_METER_CONFIG = "meters.txt"
 
 RANDOM_TITLE = "random.change.title"
+COLOR_DEPTH = "color.depth"
+START_ANIMATION = "start.animation"
 FONT_PATH = "font.path"
 FONT_LIGHT = "font.light"
 FONT_REGULAR = "font.regular"
 FONT_BOLD = "font.bold"
+
+POSITION_TYPE = "position.type"
+POS_X = "position.x"
+POS_Y = "position.y"
 
 EXTENDED_CONF = "config.extend"
 METER_VISIBLE = "meter.visible"
@@ -79,6 +85,27 @@ class Volumio_ConfigFileParser(object):
             self.meter_config_volumio[RANDOM_TITLE] = c.getboolean(CURRENT, RANDOM_TITLE)
         except:
             self.meter_config_volumio[RANDOM_TITLE] = False                
+        try:
+            self.meter_config_volumio[COLOR_DEPTH] = c.getint(CURRENT, COLOR_DEPTH)
+        except:
+            self.meter_config_volumio[COLOR_DEPTH] = 32
+        try:    
+            self.meter_config_volumio[START_ANIMATION] = c.getboolean(CURRENT, START_ANIMATION)
+        except:
+            self.meter_config_volumio[START_ANIMATION] = False
+        try:
+            self.meter_config_volumio[POSITION_TYPE] = c.get(CURRENT, POSITION_TYPE)
+        except:
+            self.meter_config_volumio[POSITION_TYPE] = "center"
+        try:
+            self.meter_config_volumio[POS_X] = c.getint(CURRENT, POS_X)
+        except:
+            self.meter_config_volumio[POS_X] = 0
+        try:
+            self.meter_config_volumio[POS_Y] = c.getint(CURRENT, POS_Y)
+        except:
+            self.meter_config_volumio[POS_Y] = 0
+
         try:
             self.meter_config_volumio[FONT_PATH] = c.get(CURRENT, FONT_PATH)
         except:

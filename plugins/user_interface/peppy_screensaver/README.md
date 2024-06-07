@@ -3,6 +3,15 @@ PeppyMeter as screensaver for Volumio on raspberry pi
 >Many thanks to peppy.player, who provided the conditions for this
 
 -----
+##### Version 2.2.1
+* fix stop screensaver on title end
+* add volume fadeIn also for spectrum
+* add animation on startup and on close of screensaver
+* add the possibility to change the position of screensaver window if it smaller then screen
+
+##### Version 2.2.0
+* update socketIO to 4.6 to make it compatible to updated volumio socketIO server
+
 ##### Version 2.1.0
 * complete spectrum templates for all resolutions
 * add an option for USB-DAC's to prevent abbort playing with spotify

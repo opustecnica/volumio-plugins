@@ -12,6 +12,24 @@ try:
 except ImportError:
     pass"
 }
+
+# define change meters.ini to set meter.x = 1
+# prevent segmentation fault
+changeINI () {
+    sed -i 's|meter.x.*|meter.x = 1|g' $1
+    sect=$(grep "^\[" $1 | sed 's,^\[,,' | sed 's,\],,')
+    for i in $sect; do
+        changeSection "$i" "$1"
+    done
+}
+# define meter.x = 1 to section, whitch have it missing
+# prevent segmentation fault
+changeSection () {
+    ret=$(sed -nr "/^\[$1\]/ { :l /^meter.x[ ]*=/ { s/[^=]*=[ ]*//; p; q;}; n; b l;}" $2)
+    if [ ! $ret ]; then 
+        sed -i "/^\[$1\]/a\meter.x = 1" $2
+    fi
+}
 # ----------------------------------
 
 
@@ -20,11 +38,12 @@ except ImportError:
 # Then use it to differentiate your install
 
 # set current directory
-dest_path=/data/plugins/user_interface/peppy_screensaver
-ppa_path=/home/volumio/peppyalsa
-peppymeter_path=${dest_path}/screensaver/peppymeter
-peppyspectrum_path=${dest_path}/screensaver/spectrum
-data_path=/data/INTERNAL/peppy_screensaver
+PLUGIN_path=$(cd $(dirname $0) && pwd -P)
+PLUGIN_name=$(grep '\"name\":' ${PLUGIN_path}/package.json | cut -d "\"" -f 4)
+PPA_path=/home/volumio/peppyalsa
+PEPPYMETER_path=${PLUGIN_path}/screensaver/peppymeter
+PEPPYSPECTRUM_path=${PLUGIN_path}/screensaver/spectrum
+DATA_path=/data/INTERNAL/${PLUGIN_name}
 
 ID=$(awk '/VERSION_ID=/' /etc/*-release | sed 's/VERSION_ID=//' | sed 's/\"//g')
 VER=$(awk '/VOLUMIO_VERSION=/' /etc/*-release | sed 's/VOLUMIO_VERSION=//' | sed 's/\"//g')
@@ -37,21 +56,21 @@ if [ ! -f "/usr/local/lib/libpeppyalsa.so" ]; then
     # for pi3/4/5 used precompiled version
     if [ $ARCH = "arm" ]; then
         echo "___Install peppyalsa ..."
-        sudo tar -xzf ${dest_path}/dependencies/peppyalsa.tar.gz  -C /usr/local/lib
+        sudo tar -xzf ${PLUGIN_path}/dependencies/peppyalsa.tar.gz  -C /usr/local/lib
         
         echo "___Install peppyalsa client ..."
         PA_CLIENT=/home/volumio/peppyalsa/src
         mkdir -p ${PA_CLIENT}
-        cp -p ${dest_path}/dependencies/peppyalsa-client ${PA_CLIENT}/
+        cp -p ${PLUGIN_path}/dependencies/peppyalsa-client ${PA_CLIENT}/
         chmod 755 ${PA_CLIENT}/peppyalsa-client
     
     # otherwise start compilation
     else
         echo "___Install peppyalsa dependencies..."
         sudo apt-get update && APTUPD=true
-        mkdir $ppa_path
-        git clone https://github.com/project-owner/peppyalsa.git $ppa_path
-        cd $ppa_path
+        mkdir $PPA_path
+        git clone https://github.com/project-owner/peppyalsa.git $PPA_path
+        cd $PPA_path
         sudo apt-get -y install build-essential autoconf automake libtool libasound2-dev libfftw3-dev
     
         echo "___Compile peppyalsa..."
@@ -69,9 +88,9 @@ fi
 
 ########################################
 # build peppyalsa commandline client for test of installed peppyalsa
-if [ -d "${ppa_path}" ] && [ ! -f "${ppa_path}/src/peppyalsa-client" ]; then
+if [ -d "${PPA_path}" ] && [ ! -f "${PPA_path}/src/peppyalsa-client" ]; then
     echo "___Compile peppyalsa-client commandline tool..."
-    cd ${ppa_path}/src
+    cd ${PPA_path}/src
     if grep -q '/home/pi/myfifo' peppyalsa-client.c; then
         sudo sed -i 's/\/home\/pi\/myfifo/\/tmp\/myfifo/g' peppyalsa-client.c
     fi
@@ -83,48 +102,56 @@ fi
     
 ########################################
 # install PeppyMeter
-if [ ! -d "${peppymeter_path}" ]; then
+if [ ! -d "${PEPPYMETER_path}" ]; then
     echo "___Install PeppyMeter..."
-    git clone https://github.com/project-owner/PeppyMeter.git $peppymeter_path
-#    chmod -R 777 $peppymeter_path
-#    chown -R volumio:volumio $peppymeter_path
+    git clone https://github.com/project-owner/PeppyMeter.git $PEPPYMETER_path
+#    chmod -R 777 $PEPPYMETER_path
+#    chown -R volumio:volumio $PEPPYMETER_path
 else
     echo "___PeppyMeter already installed"
 fi
 
 # copy volumio integration
-cp -rf ${dest_path}/volumio_peppymeter/* ${dest_path}/screensaver/ 
-rm -rd ${dest_path}/volumio_peppymeter
-chmod +x ${dest_path}/run_peppymeter.sh
+cp -rf ${PLUGIN_path}/volumio_peppymeter/* ${PLUGIN_path}/screensaver/ 
+rm -rd ${PLUGIN_path}/volumio_peppymeter
+chmod +x ${PLUGIN_path}/run_peppymeter.sh
 
 # templates
-mkdir -p ${data_path} 
-cp -rf ${dest_path}/templates ${data_path}/
-rm -rd ${dest_path}/templates 
-cp -rf ${peppymeter_path}/*0x* ${data_path}/templates/
-rm -rd ${peppymeter_path}/*0x*
+mkdir -p ${DATA_path} 
+cp -rf ${PLUGIN_path}/templates ${DATA_path}/
+rm -rd ${PLUGIN_path}/templates 
+cp -rf ${PEPPYMETER_path}/*0x* ${DATA_path}/templates/
+rm -rd ${PEPPYMETER_path}/*0x*
+
+# prevent segmentation fault on pi
+if [ $ARCH = "arm" ]; then
+    ini_320=${DATA_path}/templates/320x240/meters.txt
+    ini_480=${DATA_path}/templates/480x320/meters.txt
+    changeINI "$ini_320"
+    changeINI "$ini_480"
+fi
 
 ########################################
 # install PeppySpectrum
-if [ ! -d "${peppyspectrum_path}" ]; then
+if [ ! -d "${PEPPYSPECTRUM_path}" ]; then
     echo "___Install PeppySpectrum..."
-    git clone https://github.com/project-owner/PeppySpectrum.git $peppyspectrum_path
-#    chmod -R 777 $peppyspectrum_path
-#    chown -R volumio:volumio $peppyspectrum_path
+    git clone https://github.com/project-owner/PeppySpectrum.git $PEPPYSPECTRUM_path
+#    chmod -R 777 $PEPPYSPECTRUM_path
+#    chown -R volumio:volumio $PEPPYSPECTRUM_path
 else
     echo "___PeppySpectrum already installed"
 fi
 
 # templates 
-cp -rf ${dest_path}/templates_spectrum ${data_path}/
-rm -rd ${dest_path}/templates_spectrum 
-cp -rf ${peppyspectrum_path}/*0x* ${data_path}/templates_spectrum/
-rm -rd ${peppyspectrum_path}/*0x*
+cp -rf ${PLUGIN_path}/templates_spectrum ${DATA_path}/
+rm -rd ${PLUGIN_path}/templates_spectrum 
+cp -rf ${PEPPYSPECTRUM_path}/*0x* ${DATA_path}/templates_spectrum/
+rm -rd ${PEPPYSPECTRUM_path}/*0x*
 
-chmod -R 744 ${data_path}
-chown -R volumio:volumio ${data_path}
-chmod -R 755 ${dest_path}/screensaver
-chown -R volumio:volumio ${dest_path}/screensaver
+chmod -R 744 ${DATA_path}
+chown -R volumio:volumio ${DATA_path}
+chmod -R 755 ${PLUGIN_path}/screensaver
+chown -R volumio:volumio ${PLUGIN_path}/screensaver
     
 ########################################
 # install python and pygame
@@ -134,7 +161,7 @@ if [ $(checkModul "pygame" | grep -c '1') -eq 0 ]; then
     # for pi3/4/5 used precompiled version of pygame2
     echo "___Install python pygame..."
     if [ $ARCH = "arm" ]; then
-        sudo tar -xzf ${dest_path}/dependencies/pygame2.tar.gz  -C /usr
+        sudo tar -xzf ${PLUGIN_path}/dependencies/pygame2.tar.gz  -C /usr
     
     # otherwise install older version 1.9.4
     else
@@ -154,14 +181,14 @@ else
 fi
 
 
-if [ $(checkModul "socketIO_client" | grep -c '1') -eq 0 ]; then     
+if [ $(checkModul "socketio" | grep -c '1') -eq 0 ]; then     
     echo "___Install python socket-IO..."
     if [ $ARCH = "arm" ]; then
-        sudo tar -xzf ${dest_path}/dependencies/socketIO.tar.gz  -C /usr/local/lib/python3.7/dist-packages
+        sudo tar -xzf ${PLUGIN_path}/dependencies/socketio.tar.gz  -C /usr/local/lib/python3.7/dist-packages
     else
         if [ $APTUPD = "false" ]; then sudo apt-get update && APTUPD=true; fi
         if [ $PIPUPD = "false" ]; then sudo apt-get -y install python3-pip && PIPUPD=true; fi
-        sudo python3 -m pip install socketIO-client
+        sudo python3 -m pip install python-engineio==3.14.2 python-socketio[client]==4.6.0
     fi
 else
         echo "___Python sockt-IO already installed"
@@ -171,7 +198,7 @@ if [ $(checkModul "cairosvg" | grep -c '1') -eq 0 ]; then
 
     if [ $ARCH = "arm" ]; then
         echo "___Install python pillow..."
-        sudo tar -xzf ${dest_path}/dependencies/PIL.tar.gz  -C /usr/local/lib/python3.7/dist-packages
+        sudo tar -xzf ${PLUGIN_path}/dependencies/PIL.tar.gz  -C /usr/local/lib/python3.7/dist-packages
     else
         echo "___Install python cairoSVG..."
         if [ $APTUPD = "false" ]; then sudo apt-get update && APTUPD=true; fi
@@ -183,22 +210,43 @@ else
         echo "___Python cairoSVG already installed"
 fi    
 
-sudo rm -rd ${dest_path}/dependencies
+if [ $(checkModul "pyscreenshot" | grep -c '1') -eq 0 ]; then
+
+    if [ $ARCH = "arm" ]; then
+        echo "___Install python screenshot..."
+        sudo tar -xzf ${PLUGIN_path}/dependencies/pyscreenshot.tar.gz  -C /usr/local/lib/python3.7/dist-packages
+    else
+        echo "___Install python cairoSVG..."
+        if [ $APTUPD = "false" ]; then sudo apt-get update && APTUPD=true; fi
+        if [ $PIPUPD = "false" ]; then sudo apt-get -y install python3-pip && PIPUPD=true; fi
+        sudo python3 -m pip install pyscreenshot
+    fi
+else
+        echo "___Python pyscreenshot already installed"
+fi  
+
+sudo rm -rd ${PLUGIN_path}/dependencies
 
 ########################################
 # modify PeppyMeter config for Volumio
 echo "___Modify PeppyMeter config for Volumio..."
-CFG=${peppymeter_path}/config.txt
+CFG=${PEPPYMETER_path}/config.txt
 
 
 # section current
-sed -i 's/random.meter.interval.*/random.meter.interval = 60/g' $CFG
-sed -i 's/exit.on.touch.*/exit.on.touch = True/g' $CFG
-sed -i 's/base.folder.*/base.folder = \/data\/INTERNAL\/peppy_screensaver\/templates/g' $CFG
+sed -i 's|random.meter.interval.*|random.meter.interval = 60|g' $CFG
+sed -i 's|exit.on.touch.*|exit.on.touch = True|g' $CFG
+sed -i 's|stop.display.on.touch.*|stop.display.on.touch = True|g' $CFG
+sed -i "s|base.folder.*|base.folder = ${DATA_path}/templates|g" $CFG
 if ! grep -q 'volumio entries' $CFG; then
     sed -i '/\[sdl.env\]/i\
 # --- volumio entries -------\
 random.change.title = True\
+color.depth = 24\
+position.type = center\
+position.x = 0\
+position.y = 0\
+start.animation = True\
 font.path = /volumio/http/www3/app/themes/volumio3/assets/variants/volumio/fonts\
 font.light = /Lato-Light.ttf\
 font.regular = /Lato-Regular.ttf\
@@ -216,40 +264,32 @@ font.bold = /Lato-Bold.ttf\
 ' $CFG
 fi 
 # section sdl.env
-sed -i 's/framebuffer.device.*/framebuffer.device = \/dev\/fb0/g' $CFG
-sed -i 's/mouse.device.*/mouse.device = \/dev\/input\/event0/g' $CFG
-sed -i 's/double.buffer.*/double.buffer = False/g' $CFG
-sed -i 's/no.frame.*/no.frame = True/g' $CFG
+sed -i 's|framebuffer.device.*|framebuffer.device = /dev/fb0|g' $CFG
+sed -i 's|mouse.device.*|mouse.device = /dev/input/event0|g' $CFG
+sed -i 's|double.buffer.*|double.buffer = True|g' $CFG
+sed -i 's|no.frame.*|no.frame = True|g' $CFG
 # section data.source
-sed -i 's/pipe.name.*/pipe.name = \/tmp\/myfifo/g' $CFG
-sed -i 's/smooth.buffer.size.*/smooth.buffer.size = 8/g' $CFG
+sed -i 's|pipe.name.*|pipe.name = /tmp/myfifo|g' $CFG
+sed -i 's|smooth.buffer.size.*|smooth.buffer.size = 8|g' $CFG
+
 
 ########################################
 # modify PeppySpectrum config for Volumio
 echo "___Modify PeppySpectrum config for Volumio..."
-CFG=${peppyspectrum_path}/config.txt
+CFG=${PEPPYSPECTRUM_path}/config.txt
 
 # section current
-sed -i 's/base.folder.*/base.folder = \/data\/INTERNAL\/peppy_screensaver\/templates_spectrum/g' $CFG
-sed -i 's/exit.on.touch.*/exit.on.touch = True/g' $CFG
-sed -i 's/pipe.name.*/pipe.name = \/tmp\/myfifosa/g' $CFG
-sed -i 's/size.*/size = 20/g' $CFG
-sed -i 's/update.ui.interval.*/update.ui.interval = 0.04/g' $CFG
+sed -i "s|base.folder.*|base.folder = ${DATA_path}/templates_spectrum|g" $CFG
+sed -i 's|exit.on.touch.*|exit.on.touch = True|g' $CFG
+sed -i 's|pipe.name.*|pipe.name = /tmp/myfifosa|g' $CFG
+sed -i 's|size.*|size = 20|g' $CFG
+sed -i 's|update.ui.interval.*|update.ui.interval = 0.04|g' $CFG
 
 # section sdl.env
-sed -i 's/framebuffer.device.*/framebuffer.device = \/dev\/fb0/g' $CFG
-sed -i 's/mouse.device.*/mouse.device = \/dev\/input\/event0/g' $CFG
-sed -i 's/double.buffer.*/double.buffer = False/g' $CFG
-sed -i 's/no.frame.*/no.frame = True/g' $CFG
-
-# screensaverspectrum.py
-#CFG=${peppyspectrum_path}/screensaverspectrum.py
-#sed -i '/if util != None:/a\
-#            self.bg = (None, None, None, None)\
-#            """' $CFG
-#sed -i '/def get_update_period(self):/i\
-#            """\
-#' $CFG
+sed -i 's|framebuffer.device.*|framebuffer.device = /dev/fb0|g' $CFG
+sed -i 's|mouse.device.*|mouse.device = /dev/input/event0|g' $CFG
+sed -i 's|double.buffer.*|double.buffer = False|g' $CFG
+sed -i 's|no.frame.*|no.frame = True|g' $CFG
 
 echo "___Finished"        
     

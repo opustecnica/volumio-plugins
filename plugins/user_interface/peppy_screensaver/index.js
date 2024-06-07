@@ -6,6 +6,7 @@ var config = new (require('v-conf'))();
 var exec = require('child_process').exec;
 var execSync = require('child_process').execSync;
 var sizeOf = require('image-size');
+var use_SDL2 = false;
 
 const lineReader = require('line-reader');
 const io = require('socket.io-client');
@@ -22,7 +23,7 @@ var RunPeppyFile = PluginPath + '/run_peppymeter.sh';
 var PeppyConf = PeppyPath + '/config.txt';
 const meterFolderStr = 'meter.folder'; // entry in config.txt to detect template folder
 
-var minmax = new Array(5);
+var minmax = new Array(7);
 var last_outputdevice, last_softmixer;
 var peppy_config, base_folder_P;
 
@@ -105,7 +106,10 @@ peppyScreensaver.prototype.onStart = function() {
     // only if it not correct deleted on uninstall
     var enableDSD = parseInt(self.config.get('alsaSelection'),10) == 1 ? true : false;
     self.MPD_setOutput(MPD_include, enableDSD);
-        
+
+    // check pygame 2 installed
+    self.get_SDL2_enabled().then(function (SDL) { use_SDL2 = SDL; });
+              
     if (self.IfBuster()) {
       //_________________ detect Buster _________________
 
@@ -213,9 +217,12 @@ peppyScreensaver.prototype.onStart = function() {
                 }, ScreenTimeout);
             }
           }
-        } else if (state.status !== 'play' && lastStateIsPlaying) {
-          clearTimeout(Timeout);
-          lastStateIsPlaying = false;
+        } else if (lastStateIsPlaying) {
+            if (state.status === 'pause' || (state.status === 'stop' && (state.service === 'webradio' || state.uri === ''))) {
+                if (fs.existsSync(runFlag)){fs.removeSync(runFlag);}
+                clearTimeout(Timeout);
+                lastStateIsPlaying = false;
+            }
         }
     });
     
@@ -367,9 +374,9 @@ peppyScreensaver.prototype.getUIConfig = function() {
             // screensaver timeout
             uiconf.sections[0].content[5].value = self.config.get('timeout');
             minmax[0] = [uiconf.sections[0].content[5].attributes[2].min,
-              uiconf.sections[0].content[5].attributes[3].max,
-              uiconf.sections[0].content[5].attributes[0].placeholder];
-                                      
+                uiconf.sections[0].content[5].attributes[3].max,
+                uiconf.sections[0].content[5].attributes[0].placeholder];
+            
             // active folder
             // fill selection list with custom folders
             var files = fs.readdirSync(base_folder_P);
@@ -396,29 +403,60 @@ peppyScreensaver.prototype.getUIConfig = function() {
                 uiconf.sections[0].content[6].value.label = self.config.get('activeFolder_title');
             }
 
+            if (use_SDL2) {
+            // position type
+                if (peppy_config.current['position.type'] == 'center') { 
+                    uiconf.sections[0].content[7].value.value = 0;
+                    uiconf.sections[0].content[7].value.label = 'centered';
+                } else {
+                    uiconf.sections[0].content[7].value.value = 1;
+                    uiconf.sections[0].content[7].value.label = 'manually';
+                }
+            // position x
+                uiconf.sections[0].content[8].value = parseInt(peppy_config.current['position.x'], 10);
+                minmax[1] = [uiconf.sections[0].content[8].attributes[2].min,
+                    uiconf.sections[0].content[8].attributes[3].max,
+                    uiconf.sections[0].content[8].attributes[0].placeholder];
+            // position y
+                uiconf.sections[0].content[9].value = parseInt(peppy_config.current['position.y'], 10);
+                minmax[2] = [uiconf.sections[0].content[9].attributes[2].min,
+                    uiconf.sections[0].content[9].attributes[3].max,
+                    uiconf.sections[0].content[9].attributes[0].placeholder];
+            // animation
+                var animation = (peppy_config.current['start.animation']).toLowerCase() == 'true' ? true : false;
+                uiconf.sections[0].content[10].value = animation;
+            } else {
+                uiconf.sections[0].content[7].hidden = true;
+                uiconf.sections[0].content[7].value.value = 0;
+                uiconf.sections[0].content[7].value.label = 'centered';
+
+                uiconf.sections[0].content[10].hidden = true; // animation
+                uiconf.sections[0].content[10].value = false;
+            }
+
             // smooth buffer
-            uiconf.sections[0].content[7].value = parseInt(peppy_config.data.source['smooth.buffer.size'], 10);                                
-            minmax[1] = [uiconf.sections[0].content[7].attributes[2].min,
-                uiconf.sections[0].content[7].attributes[3].max,
-                uiconf.sections[0].content[7].attributes[0].placeholder];
+            uiconf.sections[0].content[11].value = parseInt(peppy_config.data.source['smooth.buffer.size'], 10);                                
+            minmax[3] = [uiconf.sections[0].content[11].attributes[2].min,
+                uiconf.sections[0].content[11].attributes[3].max,
+                uiconf.sections[0].content[11].attributes[0].placeholder];
 
             // needle cache
             var needleCache = (peppy_config.current['use.cache']).toLowerCase() == 'true' ? true : false;
-            uiconf.sections[0].content[8].value = needleCache;
+            uiconf.sections[0].content[12].value = needleCache;
 
             // cache size
-            uiconf.sections[0].content[9].value = parseInt(peppy_config.current['cache.size'], 10);                                
-            minmax[2] = [uiconf.sections[0].content[9].attributes[2].min,
-                uiconf.sections[0].content[9].attributes[3].max,
-                uiconf.sections[0].content[9].attributes[0].placeholder];
+            uiconf.sections[0].content[13].value = parseInt(peppy_config.current['cache.size'], 10);                                
+            minmax[4] = [uiconf.sections[0].content[13].attributes[2].min,
+                uiconf.sections[0].content[13].attributes[3].max,
+                uiconf.sections[0].content[13].attributes[0].placeholder];
                 
             // mouse support
             var mouseSupport = (peppy_config.sdl.env['mouse.enabled']).toLowerCase() == 'true' ? true : false;
-            uiconf.sections[0].content[10].value = mouseSupport;
+            uiconf.sections[0].content[14].value = mouseSupport;
 
             // display output
-            uiconf.sections[0].content[11].value.value = self.config.get('displayOutput');
-            uiconf.sections[0].content[11].value.label = 'Display=' + self.config.get('displayOutput');
+            uiconf.sections[0].content[15].value.value = self.config.get('displayOutput');
+            uiconf.sections[0].content[15].value.label = 'Display=' + self.config.get('displayOutput');
              
             // section 1 ------------
             availMeters = '';
@@ -467,7 +505,7 @@ peppyScreensaver.prototype.getUIConfig = function() {
                 
                 // random intervall
                 uiconf.sections[1].content[3].value = parseInt(peppy_config.current['random.meter.interval'], 10);
-                minmax[3] = [uiconf.sections[1].content[3].attributes[2].min,
+                minmax[5] = [uiconf.sections[1].content[3].attributes[2].min,
                     uiconf.sections[1].content[3].attributes[3].max,
                     uiconf.sections[1].content[3].attributes[0].placeholder];
 
@@ -585,6 +623,47 @@ peppyScreensaver.prototype.savePeppyMeterConf = function (confData) {
         self.checkMetersFile();
     }
 
+    if (use_SDL2) {
+        // write position type        
+        var pos_type = confData.positionType.value == 0? 'center' : 'manual';
+        if (peppy_config.current['position.type'] !== pos_type) {
+            peppy_config.current['position.type'] = pos_type;
+            noChanges = false;
+        }
+        // write position x
+        if (Number.isNaN(parseInt(confData.position_x, 10)) || !isFinite(confData.position_x)) {
+            uiNeedsUpdate = true;
+            setTimeout(function () {
+                self.commandRouter.pushToastMessage('error', self.commandRouter.getI18nString('PEPPY_SCREENSAVER.PLUGIN_NAME'), self.commandRouter.getI18nString('PEPPY_SCREENSAVER.POS_X') + self.commandRouter.getI18nString('PEPPY_SCREENSAVER.NAN'));
+            }, 500);
+        } else {
+            confData.position_x = self.minmax('POS_X', confData.position_x, minmax[1]);
+            if (peppy_config.current['position.x'] != confData.position_x) {
+                peppy_config.current['position.x'] = confData.position_x;
+                noChanges = false;
+            }
+        }
+        // write position y
+        if (Number.isNaN(parseInt(confData.position_y, 10)) || !isFinite(confData.position_y)) {
+            uiNeedsUpdate = true;
+            setTimeout(function () {
+                self.commandRouter.pushToastMessage('error', self.commandRouter.getI18nString('PEPPY_SCREENSAVER.PLUGIN_NAME'), self.commandRouter.getI18nString('PEPPY_SCREENSAVER.POS_Y') + self.commandRouter.getI18nString('PEPPY_SCREENSAVER.NAN'));
+            }, 500);
+        } else {
+            confData.position_y = self.minmax('POS_Y', confData.position_y, minmax[2]);
+            if (peppy_config.current['position.y'] != confData.position_y) {
+                peppy_config.current['position.y'] = confData.position_y;
+                noChanges = false;
+            }
+        }
+        // write animation
+        var animation = confData.animation? 'True' : 'False';
+        if (peppy_config.current['start.animation'] != animation) {
+            peppy_config.current['start.animation'] = animation;
+            noChanges = false;
+        }
+    }
+    
     // write screen width/height
     var dimensions = {'width':'', 'height':''};
     var files = fs.readdirSync(base_folder_P + confData.activeFolder.value);
@@ -605,14 +684,14 @@ peppyScreensaver.prototype.savePeppyMeterConf = function (confData) {
         noChanges = false;
     }
     
-    // write needle cache
+    // write cache size
     if (Number.isNaN(parseInt(confData.cachesize, 10)) || !isFinite(confData.cachesize)) {
         uiNeedsUpdate = true;
         setTimeout(function () {
             self.commandRouter.pushToastMessage('error', self.commandRouter.getI18nString('PEPPY_SCREENSAVER.PLUGIN_NAME'), self.commandRouter.getI18nString('PEPPY_SCREENSAVER.CACHESIZE') + self.commandRouter.getI18nString('PEPPY_SCREENSAVER.NAN'));
         }, 500);
     } else {
-        confData.cachesize = self.minmax('CACHESIZE', confData.cachesize, minmax[2]);
+        confData.cachesize = self.minmax('CACHESIZE', confData.cachesize, minmax[4]);
         if (peppy_config.current['cache.size'] != confData.cachesize) {
             peppy_config.current['cache.size'] = confData.cachesize;
             noChanges = false;
@@ -626,7 +705,7 @@ peppyScreensaver.prototype.savePeppyMeterConf = function (confData) {
             self.commandRouter.pushToastMessage('error', self.commandRouter.getI18nString('PEPPY_SCREENSAVER.PLUGIN_NAME'), self.commandRouter.getI18nString('PEPPY_SCREENSAVER.SMOOTH_BUFFER') + self.commandRouter.getI18nString('PEPPY_SCREENSAVER.NAN'));
         }, 500);
     } else {
-        confData.smoothBuffer = self.minmax('SMOOTH_BUFFER', confData.smoothBuffer, minmax[1]);
+        confData.smoothBuffer = self.minmax('SMOOTH_BUFFER', confData.smoothBuffer, minmax[3]);
         if (peppy_config.data.source['smooth.buffer.size'] != confData.smoothBuffer) {
             peppy_config.data.source['smooth.buffer.size'] = confData.smoothBuffer;
             noChanges = false;
@@ -728,7 +807,7 @@ peppyScreensaver.prototype.saveVUMeterConf = function (confData) {
             self.commandRouter.pushToastMessage('error', self.commandRouter.getI18nString('PEPPY_SCREENSAVER.PLUGIN_NAME'), self.commandRouter.getI18nString('PEPPY_SCREENSAVER.RANDOMINTERVAL') + self.commandRouter.getI18nString('PEPPY_SCREENSAVER.NAN'));
         }, 500);
     } else {
-        confData.randomInterval = self.minmax('RANDOMINTERVAL', confData.randomInterval, minmax[3]);
+        confData.randomInterval = self.minmax('RANDOMINTERVAL', confData.randomInterval, minmax[5]);
         if (peppy_config.current['random.meter.interval'] != confData.randomInterval) {
             peppy_config.current['random.meter.interval'] = confData.randomInterval;
             noChanges = false;
@@ -1038,7 +1117,30 @@ peppyScreensaver.prototype.switch_alsaModular = function () {
         last_softmixer = softmixer;
     }, 500 );
 };
-                        
+
+// check, if Pygame 2 with SDL2 installed)
+peppyScreensaver.prototype.get_SDL2_enabled = function (data) {
+    const self = this;
+    var defer = libQ.defer();
+  
+    var python_str = 'python3 -c "import pygame"'   
+
+    exec(python_str, { uid: 1000, gid: 1000 }, function (error, stdout, stderr) {
+    if (error) {
+        self.logger.warn(id + 'An error occurred on pygame check', error);
+    } else {
+        if (stdout.includes('pygame 2.')) {
+            defer.resolve(true);
+            return true;
+        } else {
+            defer.resolve(false);
+            return false;
+        }            
+    }
+  });
+    return defer.promise;
+};
+                         
 // check, if MPD output enabled
 peppyScreensaver.prototype.get_output_enabled = function (data) {
     const self = this;
@@ -1059,7 +1161,7 @@ peppyScreensaver.prototype.get_output_enabled = function (data) {
                 return false
             } else {
                 defer.resolve (true);
-                return false
+                return true
             }
         }           
     })

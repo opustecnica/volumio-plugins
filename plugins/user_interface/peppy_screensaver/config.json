@@ -35,10 +35,6 @@
     "value":"BuildIn 480x320",
     "type":"string"
   },
-  "smoothBuffer": {
-    "value":"8",
-    "type":"number"
-  },
   "displayOutput": {
     "value":"0",
     "type":"number"

@@ -38,6 +38,19 @@ class SpectrumOutput(Thread):
         self.w = self.meter_section[SPECTRUM_SIZE][0]
         self.h = self.meter_section[SPECTRUM_SIZE][1]
         self.s = self.meter_section[SPECTRUM]
+
+    def VolumeFadeIn(self, spectrum):
+        """ callback methode to fade in volume for spectrum bars """
+        self.FadeIn = Thread(target = self.FadeIn_thread, args=(spectrum, ))
+        self.FadeIn.start()
+
+    def FadeIn_thread(self, arg):
+        spc = arg
+        vol = 0.0
+        while vol <= 1.0: 
+            spc.height_adjuster = vol
+            vol += 0.1
+            time.sleep(0.07)
         
     def run(self):
         """ Thread method start peppySpectrum """
@@ -69,7 +82,8 @@ class SpectrumOutput(Thread):
         self.sp.spectrum_configs = self.sp.config_parser.get_spectrum_configs()
         self.sp.init_spectrums()
         # start spectrum without UI refresh loop
-        self.sp.callback_start = lambda x: x # <-- dummy function to prevent update_ui on start
+        # self.sp.callback_start = lambda x: x # <-- dummy function to prevent update_ui on start
+        self.sp.callback_start = self.VolumeFadeIn
         self.sp.start()
 
 
@@ -87,5 +101,7 @@ class SpectrumOutput(Thread):
 
         if hasattr(self, 'sp') and self.sp is not None:
             self.sp.stop()
+        if hasattr(self, 'FadeIn'):
+            del self.FadeIn
 
         
